@@ -1,104 +1,139 @@
 "use client";
+
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { MdClose, MdMenu } from "react-icons/md";
+import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { useAuthStore } from "@/stores/use-auth-store";
+
+const workerRoutes = [
+  "/worker-home",
+  "/payment",
+  "/all-jobs",
+  "/work-process",
+  "/help-support",
+  "/registration",
+  "/terms-policy",
+  "/profile",
+  "/support",
+];
+
+const publicLinks = [
+  { href: "/", label: "Home" },
+  { href: "/how-it-works", label: "How It Works" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/book", label: "Book" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
+  { href: "/testimonials", label: "Testimonials" },
+];
+
+const workerLinks = [
+  { href: "/worker-home", label: "Home" },
+  { href: "/work-process", label: "Work Process" },
+  { href: "/all-jobs", label: "All Jobs" },
+  { href: "/payment", label: "Payment" },
+  { href: "/terms-policy", label: "Terms & Policy" },
+];
+
+const getPrimaryActionHref = (user) => {
+  if (user?.role === "worker") {
+    return "/all-jobs";
+  }
+
+  if (user?.role === "customer") {
+    return "/book";
+  }
+
+  return "/";
+};
+
+const getPrimaryActionLabel = (user) => {
+  if (user?.role === "worker") {
+    return "All Jobs";
+  }
+
+  if (user?.role === "customer") {
+    return "Book Yard Work";
+  }
+
+  return "Browse";
+};
+
+const getAccountLabel = (user) => {
+  if (user?.role === "worker") {
+    return "Worker Home";
+  }
+
+  if (user?.role === "customer") {
+    return "My Jobs";
+  }
+
+  return "Account";
+};
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-
-  // Worker-related routes
-  const workerRoutes = [
-    "/worker",
-    "/payment",
-    "/all-jobs",
-    "/work-process",
-    "/help-support",
-    "/registration",
-    "/terms-policy",
-  ];
-
+  const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isInitializing = useAuthStore((state) => state.isInitializing);
+  const logout = useAuthStore((state) => state.logout);
   const isWorkerPage = workerRoutes.some((route) => pathname.startsWith(route));
+  const navLinks = isWorkerPage ? workerLinks : publicLinks;
+  const accountHref = getDefaultPathForUser(user);
+
+  const handleLogout = async () => {
+    await logout();
+    setOpen(false);
+    router.push("/");
+  };
 
   return (
     <nav className="w-full bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
           <Link href="/" className="flex items-center">
             <img src="/Logo.png" alt="Logo" className="h-10 w-auto" />
           </Link>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8 text-sm font-medium">
-            {/* Public Menu */}
-            {!isWorkerPage && (
-              <>
-                <NavLink href="/" active={pathname === "/"}>
-                  Home
-                </NavLink>
-                <NavLink
-                  href="/how-it-works"
-                  active={pathname === "/how-it-works"}
-                >
-                  How It Works
-                </NavLink>
-                <NavLink href="/pricing" active={pathname === "/pricing"}>
-                  Pricing
-                </NavLink>
-                <NavLink href="/myjobs" active={pathname === "/book"}>
-                  Book
-                </NavLink>
-                <NavLink href="/about" active={pathname === "/about"}>
-                  About
-                </NavLink>
-                <NavLink href="/contact" active={pathname === "/contact"}>
-                  Contact
-                </NavLink>
-                <NavLink
-                  href="/testimonials"
-                  active={pathname === "/testimonials"}
-                >
-                  Testimonials
-                </NavLink>
-              </>
-            )}
-
-            {/* Worker Menu */}
-            {isWorkerPage && (
-              <>
-                <NavLink
-                  href="/worker-home"
-                  active={pathname === "/worker-home"}
-                >
-                  Home
-                </NavLink>
-                <NavLink
-                  href="/work-process"
-                  active={pathname === "/work-process"}
-                >
-                  Work Process
-                </NavLink>
-                <NavLink href="/all-jobs" active={pathname === "/all-jobs"}>
-                  All Jobs
-                </NavLink>
-                <NavLink href="/payment" active={pathname === "/payment"}>
-                  Payment
-                </NavLink>
-                <NavLink
-                  href="/terms-policy"
-                  active={pathname === "/terms-policy"}
-                >
-                  Terms & Policy
-                </NavLink>
-              </>
-            )}
+            {navLinks.map((link) => (
+              <NavLink key={link.href} href={link.href} active={pathname === link.href}>
+                {link.label}
+              </NavLink>
+            ))}
           </div>
 
-          {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-4">
-            {isWorkerPage ? (
+            {isAuthenticated && user ? (
+              <>
+                <Link
+                  href={accountHref}
+                  className="text-sm font-medium text-gray-700 hover:text-green-700"
+                >
+                  {getAccountLabel(user)}
+                </Link>
+
+                <Link
+                  href={getPrimaryActionHref(user)}
+                  className="px-5 py-2 bg-green-900 text-white rounded-md hover:bg-green-800 transition"
+                >
+                  {getPrimaryActionLabel(user)}
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isInitializing}
+                  className="px-4 py-2 border rounded-md text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isInitializing ? "Logging Out..." : "Log Out"}
+                </button>
+              </>
+            ) : isWorkerPage ? (
               <>
                 <Link
                   href="/login"
@@ -140,9 +175,9 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile Toggle */}
           <button
-            onClick={() => setOpen(!open)}
+            type="button"
+            onClick={() => setOpen((currentValue) => !currentValue)}
             className="md:hidden text-gray-700"
           >
             {open ? <MdClose size={28} /> : <MdMenu size={28} />}
@@ -150,31 +185,43 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {open && (
+      {open ? (
         <div className="md:hidden bg-white border-t px-4 py-6 space-y-4 text-sm">
-          {!isWorkerPage && (
-            <>
-              <MobileLink href="/" setOpen={setOpen}>
-                Home
-              </MobileLink>
-              <MobileLink href="/how-it-works" setOpen={setOpen}>
-                How It Works
-              </MobileLink>
-              <MobileLink href="/pricing" setOpen={setOpen}>
-                Pricing
-              </MobileLink>
-              <MobileLink href="/book" setOpen={setOpen}>
-                Book
-              </MobileLink>
-              <MobileLink href="/about" setOpen={setOpen}>
-                About
-              </MobileLink>
-              <MobileLink href="/contact" setOpen={setOpen}>
-                Contact
-              </MobileLink>
+          {navLinks.map((link) => (
+            <MobileLink key={link.href} href={link.href} setOpen={setOpen}>
+              {link.label}
+            </MobileLink>
+          ))}
 
-              <div className="pt-4 border-t space-y-3">
+          <div className="pt-4 border-t space-y-3">
+            {isAuthenticated && user ? (
+              <>
+                <MobileLink href={accountHref} setOpen={setOpen}>
+                  {getAccountLabel(user)}
+                </MobileLink>
+                <MobileLink href={getPrimaryActionHref(user)} setOpen={setOpen}>
+                  {getPrimaryActionLabel(user)}
+                </MobileLink>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isInitializing}
+                  className="block text-left text-gray-700 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isInitializing ? "Logging Out..." : "Log Out"}
+                </button>
+              </>
+            ) : isWorkerPage ? (
+              <>
+                <MobileLink href="/login" setOpen={setOpen}>
+                  Login
+                </MobileLink>
+                <MobileLink href="/registration" setOpen={setOpen}>
+                  Apply as a Worker
+                </MobileLink>
+              </>
+            ) : (
+              <>
                 <MobileLink href="/login" setOpen={setOpen}>
                   Login
                 </MobileLink>
@@ -184,42 +231,14 @@ export default function Navbar() {
                 <MobileLink href="/book" setOpen={setOpen}>
                   Book Yard Work
                 </MobileLink>
-              </div>
-            </>
-          )}
-
-          {isWorkerPage && (
-            <>
-              <MobileLink href="/payment" setOpen={setOpen}>
-                Payment
-              </MobileLink>
-              <MobileLink href="/work-process" setOpen={setOpen}>
-                Work Process
-              </MobileLink>
-              <MobileLink href="/all-jobs" setOpen={setOpen}>
-                All Jobs
-              </MobileLink>
-              <MobileLink href="/help-support" setOpen={setOpen}>
-                Support
-              </MobileLink>
-
-              <div className="pt-4 border-t space-y-3">
-                <MobileLink href="/login" setOpen={setOpen}>
-                  Login
-                </MobileLink>
-                <MobileLink href="/registration" setOpen={setOpen}>
-                  Apply as a Worker
-                </MobileLink>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
-      )}
+      ) : null}
     </nav>
   );
 }
-
-/* ===== Reusable Components ===== */
 
 const NavLink = ({ href, active, children }) => (
   <Link

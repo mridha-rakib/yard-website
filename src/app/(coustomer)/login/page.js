@@ -1,59 +1,103 @@
 "use client";
-import React, { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, Shield } from "lucide-react";
-import { FiLogOut } from "react-icons/fi";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff, Lock, Mail, Shield } from "lucide-react";
+import { FiLogOut } from "react-icons/fi";
+import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { getApiErrorMessage } from "@/lib/api/http";
+import { useAuthStore } from "@/stores/use-auth-store";
 
-const page = () => {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+const initialFormData = {
+  email: "",
+  password: "",
+};
 
+const validateLoginForm = (formData) => {
+  const nextErrors = {};
+
+  if (!formData.email.trim()) {
+    nextErrors.email = "Email is required";
+  } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    nextErrors.email = "Email is invalid";
+  }
+
+  if (!formData.password) {
+    nextErrors.password = "Password is required";
+  }
+
+  return nextErrors;
+};
+
+const LoginPage = () => {
+  const router = useRouter();
+  const login = useAuthStore((state) => state.login);
+  const logout = useAuthStore((state) => state.logout);
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isInitializing = useAuthStore((state) => state.isInitializing);
+  const [formData, setFormData] = useState(initialFormData);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState("");
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      router.replace(getDefaultPathForUser(user));
+    }
+  }, [isAuthenticated, router, user]);
+
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((currentFormData) => ({
+      ...currentFormData,
       [name]: value,
-    });
+    }));
+
     if (errors[name]) {
-      setErrors({
-        ...errors,
+      setErrors((currentErrors) => ({
+        ...currentErrors,
         [name]: "",
+      }));
+    }
+
+    if (submitError) {
+      setSubmitError("");
+    }
+  };
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+
+    const nextErrors = validateLoginForm(formData);
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    try {
+      const session = await login({
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
       });
-    }
-  };
 
-  const validateForm = () => {
-    const newErrors = {};
+      if (session.user?.role === "admin") {
+        await logout();
+        setSubmitError("Admin accounts should sign in through the dashboard.");
+        return;
+      }
 
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid";
-    }
-
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleLogin = () => {
-    if (validateForm()) {
-      alert("Login successful!");
-      console.log("Login data:", formData);
+      router.replace(getDefaultPathForUser(session.user));
+    } catch (error) {
+      setSubmitError(getApiErrorMessage(error));
     }
   };
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Side - Green Section */}
       <div
         className="hidden lg:flex lg:w-1/2 bg-green-800 p-12 flex-col justify-center items-center text-white relative overflow-hidden"
         style={{
@@ -61,9 +105,7 @@ const page = () => {
             "linear-gradient(155.62deg, #0A3019 -47.66%, #065F46 84.01%)",
         }}
       >
-        {/* Content */}
         <div className="relative z-10 max-w-md text-center">
-          {/* Logo */}
           <div className="flex items-center justify-center mb-8">
             <img
               src="/LoginLogo.png"
@@ -72,7 +114,6 @@ const page = () => {
             />
           </div>
 
-          {/* Welcome Text */}
           <h2 className="text-3xl font-bold mb-4">Welcome Back</h2>
           <p className="text-green-100 text-lg leading-relaxed">
             Sign in to access your secure account and continue your journey with
@@ -81,10 +122,8 @@ const page = () => {
         </div>
       </div>
 
-      {/* Right Side - Login Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
         <div className="w-full max-w-md">
-          {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center mb-8">
             <div className="bg-green-700 rounded-2xl p-3 mr-3">
               <Shield className="w-8 h-8 text-white" />
@@ -92,9 +131,7 @@ const page = () => {
             <h1 className="text-2xl font-bold text-gray-900">Yard Heroes</h1>
           </div>
 
-          {/* Login Card */}
           <div>
-            {/* Header */}
             <div className="mb-8 text-center">
               <h2 className="text-3xl font-bold text-gray-900 mb-2">Log In</h2>
               <p className="text-gray-600">
@@ -102,9 +139,13 @@ const page = () => {
               </p>
             </div>
 
-            {/* Form Fields */}
-            <div className="space-y-5">
-              {/* Email Address */}
+            <form onSubmit={handleLogin} className="space-y-5">
+              {submitError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {submitError}
+                </div>
+              ) : null}
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Email Address
@@ -124,12 +165,11 @@ const page = () => {
                     } rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all`}
                   />
                 </div>
-                {errors.email && (
+                {errors.email ? (
                   <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                )}
+                ) : null}
               </div>
 
-              {/* Password */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Password
@@ -150,7 +190,7 @@ const page = () => {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => setShowPassword((currentValue) => !currentValue)}
                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                   >
                     {showPassword ? (
@@ -160,33 +200,31 @@ const page = () => {
                     )}
                   </button>
                 </div>
-                {errors.password && (
+                {errors.password ? (
                   <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-                )}
+                ) : null}
               </div>
 
-              {/* Forgot Password */}
               <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={() => alert("Navigate to Forgot Password")}
+                  onClick={() => window.alert("Forgot password is not connected yet.")}
                   className="text-sm text-green-700 font-semibold hover:text-green-800 transition-colors"
                 >
                   Forgot password?
                 </button>
               </div>
 
-              {/* Login Button */}
               <button
-                onClick={handleLogin}
-                className="w-full bg-[#0A3019] text-white py-4 rounded-lg font-bold text-lg hover:from-green-800 hover:to-green-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 duration-300 flex items-center justify-center"
+                type="submit"
+                disabled={isInitializing}
+                className="w-full bg-[#0A3019] text-white py-4 rounded-lg font-bold text-lg hover:from-green-800 hover:to-green-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 duration-300 flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-70 disabled:transform-none"
               >
                 <FiLogOut className="w-5 h-5 mr-2" />
-                <span>Log In</span>
+                <span>{isInitializing ? "Signing In..." : "Log In"}</span>
               </button>
-            </div>
+            </form>
 
-            {/* Sign Up Link */}
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Don't have an account?{" "}
@@ -199,7 +237,6 @@ const page = () => {
               </p>
             </div>
 
-            {/* Security Notice */}
             <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-start">
                 <Shield className="w-5 h-5 text-green-700 mr-2 flex-shrink-0 mt-0.5" />
@@ -220,4 +257,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default LoginPage;
