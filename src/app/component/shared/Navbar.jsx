@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { ChevronDown, LogOut, SquareUserRound } from "lucide-react";
 import { MdClose, MdMenu } from "react-icons/md";
 import { buildLoginPath } from "@/lib/auth/auth-redirect";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 import { useAuthStore } from "@/stores/use-auth-store";
 
@@ -110,6 +112,8 @@ const getAccountLabel = (user) => {
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
@@ -123,10 +127,42 @@ export default function Navbar() {
   const guestBookHref = buildLoginPath("/book");
 
   const handleLogout = async () => {
+    setAccountMenuOpen(false);
     await logout();
     setOpen(false);
     router.push("/");
   };
+
+  const handleMenuNavigation = (href) => {
+    setAccountMenuOpen(false);
+    router.push(href);
+  };
+
+  useEffect(() => {
+    if (!accountMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event) => {
+      if (!accountMenuRef.current?.contains(event.target)) {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [accountMenuOpen]);
 
   return (
     <nav className="w-full bg-white border-b border-gray-200">
@@ -150,47 +186,103 @@ export default function Navbar() {
 
           <div className="hidden md:flex shrink-0 items-center gap-3">
             {isAuthenticated && user ? (
-              <>
-                <Link
-                  href={profileHref}
-                  className="inline-flex items-center gap-3 rounded-full border border-[#d7e0d9] bg-[#f8faf8] px-3 py-2 transition-colors hover:bg-[#f2f6f2]"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0A3019] text-xs font-semibold text-white">
-                    {getUserShortName(user).slice(0, 1).toUpperCase()}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-[#111827]">
-                      {getUserShortName(user)}
-                    </span>
-                    <span className="rounded-full bg-[#0A3019] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
-                      {getRoleLabel(user)}
-                    </span>
-                  </div>
-                </Link>
-
-                <Link
-                  href={accountHref}
-                  className="whitespace-nowrap text-sm font-medium text-gray-700 hover:text-green-700"
-                >
-                  {getAccountLabel(user)}
-                </Link>
-
-                <Link
-                  href={getPrimaryActionHref(user)}
-                  className="whitespace-nowrap rounded-md bg-green-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-800"
-                >
-                  {getPrimaryActionLabel(user)}
-                </Link>
-
+              <div ref={accountMenuRef} className="relative">
                 <button
                   type="button"
-                  onClick={handleLogout}
-                  disabled={isInitializing}
-                  className="whitespace-nowrap rounded-md border px-4 py-2 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => setAccountMenuOpen((currentValue) => !currentValue)}
+                  className="inline-flex items-center gap-3 rounded-full border border-[#d7e0d9] bg-[#f8faf8] px-2 py-1.5 text-left transition-colors hover:bg-[#f2f6f2] focus:outline-none"
                 >
-                  {isInitializing ? "Logging Out..." : "Log Out"}
+                  <Avatar className="size-9">
+                    <AvatarImage src={user.profilePhotoUrl || ""} alt={user.name || "Account"} />
+                    <AvatarFallback className="bg-[#0A3019] text-xs font-semibold text-white">
+                      {getUserShortName(user).slice(0, 1).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="flex items-center gap-2 pr-1">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold leading-none text-[#111827]">
+                        {getUserShortName(user)}
+                      </span>
+                      <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b7280]">
+                        {getRoleLabel(user)}
+                      </span>
+                    </div>
+                    <ChevronDown
+                      className={`h-4 w-4 text-[#64748b] transition-transform ${
+                        accountMenuOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </div>
                 </button>
-              </>
+
+                {accountMenuOpen ? (
+                  <div className="absolute right-0 top-full z-50 mt-3 w-64 rounded-2xl border border-[#d7e0d9] bg-white p-2 shadow-[0_18px_48px_rgba(15,23,42,0.12)]">
+                    <div className="px-3 py-2">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="size-10">
+                          <AvatarImage
+                            src={user.profilePhotoUrl || ""}
+                            alt={user.name || "Account"}
+                          />
+                          <AvatarFallback className="bg-[#0A3019] text-xs font-semibold text-white">
+                            {getUserShortName(user).slice(0, 1).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-[#111827]">
+                            {user.name || "Account"}
+                          </p>
+                          <p className="truncate text-xs font-medium text-[#6b7280]">
+                            {user.email || getRoleLabel(user)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="my-1 h-px bg-[#e2e8e3]" />
+
+                    <button
+                      type="button"
+                      onClick={() => handleMenuNavigation(profileHref)}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[#334155] transition-colors hover:bg-[#f6f8f6]"
+                    >
+                      <SquareUserRound className="h-4 w-4 text-[#0A3019]" />
+                      Profile
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleMenuNavigation(accountHref)}
+                      className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[#334155] transition-colors hover:bg-[#f6f8f6]"
+                    >
+                      <SquareUserRound className="h-4 w-4 text-[#0A3019]" />
+                      {getAccountLabel(user)}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleMenuNavigation(getPrimaryActionHref(user))}
+                      className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[#334155] transition-colors hover:bg-[#f6f8f6]"
+                    >
+                      <SquareUserRound className="h-4 w-4 text-[#0A3019]" />
+                      {getPrimaryActionLabel(user)}
+                    </button>
+
+                    <div className="my-1 h-px bg-[#e2e8e3]" />
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      disabled={isInitializing}
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[#b42318] transition-colors hover:bg-[#fff5f5] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      {isInitializing ? "Logging Out..." : "Log Out"}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             ) : isWorkerPage ? (
               <>
                 <Link

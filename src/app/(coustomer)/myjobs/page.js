@@ -1,180 +1,304 @@
 "use client";
-import React, { useState } from "react";
-import { MapPin, Calendar, User, Clock, Plus } from "lucide-react";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  AlertCircle,
+  Calendar,
+  ChevronRight,
+  LoaderCircle,
+  MapPin,
+  Plus,
+  User,
+} from "lucide-react";
+import { jobsApi } from "@/lib/api/jobs-api";
+import { getApiErrorMessage } from "@/lib/api/http";
+import { buildLoginPath } from "@/lib/auth/auth-redirect";
+import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { formatPrice } from "@/lib/pricing-content";
+import { useAuthStore } from "@/stores/use-auth-store";
 
-const JobCard = ({ job }) => {
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      "In Progress": { bg: "bg-blue-100", text: "text-blue-700", icon: "▶" },
-      Completed: { bg: "bg-green-100", text: "text-green-700", icon: "✓" },
-      Assigned: { bg: "bg-purple-100", text: "text-purple-700", icon: "👤" },
-      Paid: { bg: "bg-gray-100", text: "text-gray-700", icon: "💳" },
-      Pending: { bg: "bg-yellow-100", text: "text-yellow-700", icon: "⏳" },
-    };
+const PAGE_LIMIT = 100;
 
-    const config = statusConfig[status] || statusConfig["Pending"];
-    return (
-      <span
-        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}
-      >
-        <span>{config.icon}</span>
-        {status}
-      </span>
-    );
-  };
-
-  const getPriceDisplay = (price) => {
-    if (typeof price === "string") return price;
-    return `$${price}`;
-  };
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5 mb-4 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-3">
-        <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
-        {getStatusBadge(job.status)}
-      </div>
-
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center text-sm text-gray-600">
-          <MapPin className="w-4 h-4 mr-2" />
-          <span>{job.address}</span>
-        </div>
-        <div className="flex items-center text-sm text-gray-600">
-          <Calendar className="w-4 h-4 mr-2" />
-          <span>Submitted on {job.date}</span>
-        </div>
-      </div>
-
-      {job.worker && (
-        <div className="flex items-center gap-2 mb-4 pb-4 border-b border-gray-100">
-          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-            <User className="w-5 h-5 text-gray-600" />
-          </div>
-          <span className="text-sm text-gray-700">{job.worker}</span>
-        </div>
-      )}
-
-      {job.note && (
-        <div className="flex items-start gap-2 mb-4 pb-4 border-b border-gray-100">
-          <Clock className="w-4 h-4 text-gray-400 mt-0.5" />
-          <span className="text-sm text-gray-600">{job.note}</span>
-        </div>
-      )}
-
-      <div className="flex justify-between items-center">
-        <span className="text-sm text-gray-500">
-          {job.priceLabel || "Total"}:{" "}
-          <span className="font-semibold text-gray-900">
-            {getPriceDisplay(job.price)}
-          </span>
-        </span>
-        {job.action && (
-       <Link href="booking-details" >
-       
-            <button
-            className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-              job.action.variant === "primary"
-                ? "bg-green-800 text-white hover:bg-green-900"
-                : job.action.variant === "secondary"
-                  ? "bg-orange-500 text-white hover:bg-orange-600"
-                  : "text-green-800 hover:text-green-900"
-            }`}
-          >
-            {job.action.text}
-          </button>
-       </Link>
-        )}
-      </div>
-    </div>
-  );
+const statusConfig = {
+  new: {
+    label: "Pending",
+    badgeClassName: "bg-[#fff7e6] text-[#b54708]",
+  },
+  assigned: {
+    label: "Assigned",
+    badgeClassName: "bg-[#f3e8ff] text-[#7c3aed]",
+  },
+  in_progress: {
+    label: "In Progress",
+    badgeClassName: "bg-[#e8f1ff] text-[#1d4ed8]",
+  },
+  completed: {
+    label: "Completed",
+    badgeClassName: "bg-[#e8f7ee] text-[#166534]",
+  },
+  paid: {
+    label: "Paid",
+    badgeClassName: "bg-[#eef2f7] text-[#475467]",
+  },
+  cancelled: {
+    label: "Cancelled",
+    badgeClassName: "bg-[#fdecec] text-[#b42318]",
+  },
 };
 
-export default function MyJobsPage() {
-  const [jobs] = useState([
-    {
-      id: 1,
-      title: "Lawn Mowing & Edging",
-      address: "123 Oak Street, Springfield",
-      date: "March 20, 2025",
-      status: "In Progress",
-      worker: "Mike Johnson - Professional Landscaper",
-      price: 45.0,
-      action: { text: "View Job Details", variant: "primary" },
-    },
-    {
-      id: 2,
-      title: "Yard Cleanup & Leaf Removal",
-      address: "456 Maple Avenue, Springfield",
-      date: "March 15, 2025",
-      status: "Completed",
-      price: 75.0,
-      priceLabel: "Total",
-      action: { text: "Review", variant: "secondary" },
-    },
-    {
-      id: 3,
-      title: "Garden Bed Weeding",
-      address: "789 Elm Road, Springfield",
-      date: "March 18, 2025",
-      status: "Assigned",
-      worker: "Sarah Williams - Garden Specialist",
-      price: 55.0,
-      action: { text: "View Job Details", variant: "primary" },
-    },
-    {
-      id: 4,
-      title: "Hedge Trimming",
-      address: "321 Pine Lane, Springfield",
-      date: "March 1, 2025",
-      status: "Paid",
-      price: "Paid $65 on March 5, 2025",
-      priceLabel: "Work Received",
-      action: { text: "Rate Work", variant: "primary" },
-    },
-    {
-      id: 5,
-      title: "Spring Garden Setup",
-      address: "555 Birch Street, Springfield",
-      date: "February 28, 2025",
-      status: "Pending",
-      note: "Finding a worker for you...",
-      price: "Finding Worker",
-      priceLabel: "",
-    },
-  ]);
+const formatCurrency = (value) => `$${formatPrice(value || 0)}`;
+
+const formatLocation = (job) =>
+  [job?.streetAddress, job?.city, job?.state, job?.zipCode]
+    .filter(Boolean)
+    .join(", ") || "Address pending";
+
+const formatSubmittedDate = (value) => {
+  if (!value) {
+    return "Recently submitted";
+  }
+
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Recently submitted";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(parsedDate);
+};
+
+const getTotalAmount = (job) => job?.payment?.amount || job?.estimatedPrice || 0;
+
+const getWorkerLabel = (job) => {
+  if (!job?.assignedWorker?.name) {
+    return "";
+  }
+
+  const skillLabel = Array.isArray(job.assignedWorker.skills) && job.assignedWorker.skills.length
+    ? ` - ${job.assignedWorker.skills[0]}`
+    : "";
+
+  return `${job.assignedWorker.name}${skillLabel}`;
+};
+
+const getPendingNote = (job) => {
+  if (job?.status === "new") {
+    return "We are finding the first available worker for this job.";
+  }
+
+  if (job?.status === "cancelled") {
+    return job?.cancelReason || "This request has been cancelled.";
+  }
+
+  return "";
+};
+
+function JobCard({ job }) {
+  const status = statusConfig[job.status] || statusConfig.new;
+  const workerLabel = getWorkerLabel(job);
+  const pendingNote = getPendingNote(job);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl flex items-center justify-center  mx-auto px-6 py-4">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900">My Jobs</h1>
-            <p className="text-sm text-gray-600 mt-1">
-              Track and manage your jobs and requests
+    <article className="rounded-[24px] border border-[#d8e4db] bg-white p-6 transition-colors hover:border-[#c6d8cb]">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-2xl font-semibold text-[#0f172a]">{job.title}</h2>
+            <span
+              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${status.badgeClassName}`}
+            >
+              {status.label}
+            </span>
+          </div>
+
+          <p className="mt-2 text-sm text-[#52606d]">
+            {job.serviceType || "General yard service"}
+          </p>
+
+          <div className="mt-5 space-y-3 text-sm text-[#52606d]">
+            <div className="flex items-start gap-3">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{formatLocation(job)}</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <Calendar className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>Submitted on {formatSubmittedDate(job.createdAt)}</span>
+            </div>
+          </div>
+
+          {workerLabel ? (
+            <div className="mt-5 flex items-center gap-3 border-t border-[#edf2ed] pt-5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#eef2f0] text-[#4b5563]">
+                <User className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[#111827]">{workerLabel}</p>
+                <p className="text-xs text-[#6b7280]">Assigned worker</p>
+              </div>
+            </div>
+          ) : pendingNote ? (
+            <div className="mt-5 rounded-2xl border border-[#e8eee9] bg-[#fbfdfb] px-4 py-3 text-sm text-[#52606d]">
+              {pendingNote}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col items-start gap-4 md:items-end">
+          <div className="rounded-2xl border border-[#e1e8e3] bg-[#fbfdfb] px-5 py-4 md:min-w-[170px]">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7280]">
+              Total
+            </p>
+            <p className="mt-2 text-3xl font-bold text-[#0f172a]">
+              {formatCurrency(getTotalAmount(job))}
             </p>
           </div>
+
+          <Link
+            href={`/booking-details?jobId=${job._id}`}
+            className="inline-flex items-center gap-2 rounded-full bg-[#0A3019] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0d3d20]"
+          >
+            View Job Details
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+export default function MyJobsPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isReady = useAuthStore((state) => state.isReady);
+  const [jobs, setJobs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
+  const [requestVersion, setRequestVersion] = useState(0);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      router.replace(buildLoginPath(pathname));
+      return;
+    }
+
+    if (user?.role && user.role !== "customer") {
+      router.replace(getDefaultPathForUser(user));
+    }
+  }, [isAuthenticated, isReady, pathname, router, user]);
+
+  useEffect(() => {
+    if (!isReady || !isAuthenticated || user?.role !== "customer") {
+      return;
+    }
+
+    let isActive = true;
+
+    const loadJobs = async () => {
+      setIsLoading(true);
+
+      try {
+        const result = await jobsApi.listMyJobs({ limit: PAGE_LIMIT });
+
+        if (!isActive) {
+          return;
+        }
+
+        setJobs(result.items || []);
+        setPageError("");
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setPageError(getApiErrorMessage(error));
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadJobs();
+
+    return () => {
+      isActive = false;
+    };
+  }, [isAuthenticated, isReady, requestVersion, user]);
+
+  if (!isReady || !isAuthenticated || user?.role !== "customer") {
+    return <div className="min-h-screen bg-[#f6f8f6]" />;
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f6f8f6]">
+      <header className="border-b border-[#d8e4db] bg-white">
+        <div className="mx-auto max-w-5xl px-6 py-10 text-center">
+          <h1 className="text-3xl font-bold text-[#0f172a]">My Jobs</h1>
+          <p className="mt-2 text-sm text-[#52606d]">
+            Track your requests, worker assignment, and job progress in one place.
+          </p>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-6 py-8">
-        {/* Job Cards */}
-        <div className="mb-6">
-          {jobs.map((job) => (
-            <JobCard key={job.id} job={job} />
-          ))}
-        </div>
-
-        {/* Book New Work Button */}
-        <div className="flex justify-center">
-          <Link href={"/booking-details"}>
-            <button className="flex items-center gap-2 bg-green-900 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-950 transition-colors">
-              <Plus className="w-5 h-5" />
-              Book New Yard Work
+      <main className="mx-auto max-w-5xl px-6 py-8">
+        {pageError ? (
+          <div className="mb-6 flex flex-col gap-4 rounded-[24px] border border-[#f2d0d0] bg-[#fff8f8] px-5 py-4 text-sm text-[#b42318] md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <p>{pageError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRequestVersion((currentValue) => currentValue + 1)}
+              className="inline-flex items-center justify-center rounded-full border border-[#f2d0d0] bg-white px-4 py-2 font-semibold text-[#b42318] transition-colors hover:bg-[#fff1f1]"
+            >
+              Try Again
             </button>
+          </div>
+        ) : null}
+
+        {isLoading ? (
+          <div className="flex min-h-[300px] items-center justify-center rounded-[28px] border border-[#d8e4db] bg-white">
+            <div className="flex items-center gap-3 text-sm text-[#52606d]">
+              <LoaderCircle className="h-5 w-5 animate-spin" />
+              Loading your jobs...
+            </div>
+          </div>
+        ) : jobs.length ? (
+          <div className="space-y-5">
+            {jobs.map((job) => (
+              <JobCard key={job._id} job={job} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[28px] border border-dashed border-[#c9d7cd] bg-white px-6 py-14 text-center">
+            <h2 className="text-2xl font-semibold text-[#0f172a]">No jobs yet</h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#52606d]">
+              Once you book a yard service, it will appear here with its worker assignment and
+              status updates.
+            </p>
+          </div>
+        )}
+
+        <div className="mt-8 flex justify-center">
+          <Link
+            href="/book"
+            className="inline-flex items-center gap-2 rounded-full bg-[#0A3019] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#0d3d20]"
+          >
+            <Plus className="h-5 w-5" />
+            Book New Yard Work
           </Link>
         </div>
       </main>
