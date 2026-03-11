@@ -1,321 +1,152 @@
-import React, { useState } from "react";
-import {
-  Leaf,
-  Wind,
-  Scissors,
-  Droplets,
-  Wrench,
-  Car,
-  Key,
-  Smartphone,
-  Sparkles,
-  Home,
-  Lightbulb,
-} from "lucide-react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  Car,
+  Droplets,
+  Home,
+  Leaf,
+  Lightbulb,
+  Scissors,
+  Sparkles,
+  Wind,
+  Wrench,
+} from "lucide-react";
+import { contentApi } from "@/lib/api/content-api";
+import { clonePricingCategories, formatPrice, normalizePricingCategories, PRICING_CONTENT_KEY } from "@/lib/pricing-content";
+
+const ICON_COMPONENTS = {
+  car: Car,
+  droplets: Droplets,
+  home: Home,
+  leaf: Leaf,
+  lightbulb: Lightbulb,
+  scissors: Scissors,
+  sparkles: Sparkles,
+  wind: Wind,
+  wrench: Wrench,
+};
 
 const ServiceCard = ({
-  icon: Icon,
+  icon,
   title,
   price,
   duration,
   description,
   buttonText,
   buttonVariant = "primary",
-}) => (
-  <div className="bg-white rounded-lg border border-gray-200 p-6 flex flex-col shadow-sm hover:shadow-md transition-shadow">
-    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-      <Icon className="w-6 h-6 text-gray-700" />
-    </div>
-    <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-    <div className="flex items-baseline gap-2 mb-1">
-      <span className="text-3xl font-bold text-gray-900">${price}</span>
-      <span className="text-sm text-gray-500">starting</span>
-    </div>
-    <p className="text-sm text-gray-500 mb-4">{duration}</p>
-    <p className="text-sm text-gray-600 mb-6 grow">{description}</p>
-
-    <Link href="/book">
-      <button
-      className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-        buttonVariant === "primary"
-          ? "bg-green-800 text-white hover:bg-green-900"
-          : "bg-white text-green-800 border-2 border-green-800 hover:bg-green-50"
-      }`}
-    >
-      {buttonText}
-    </button>
-    </Link>
-
-  </div>
-);
-
-const ServicePricing = () => {
-  const [activeTab, setActiveTab] = useState("yard");
-
- const serviceCategories = {
-  yard: {
-    title: "Yard & Outdoor Jobs",
-    subtitle: "Professional outdoor maintenance & cleanup services",
-    services: [
-      {
-        icon: Leaf,
-        title: "Lawn Mowing",
-        price: 40,
-        duration: "30–60 min",
-        description:
-          "Lawn mowing with edging and light cleanup to keep your yard neat and healthy.",
-        buttonText: "Book Service",
-      },
-      {
-        icon: Wind,
-        title: "Weed Removal",
-        price: 35,
-        duration: "45–90 min",
-        description:
-          "Manual weed removal from lawns, garden beds, and walkways.",
-        buttonText: "Book Service",
-      },
-      {
-        icon: Wind,
-        title: "Leaf Blowing & Cleanup",
-        price: 45,
-        duration: "1–2 hours",
-        description:
-          "Leaf blowing and full cleanup from lawns, patios, and driveways.",
-        buttonText: "Book Service",
-      },
-      {
-        icon: Sparkles,
-        title: "Yard Cleanup (General)",
-        price: 75,
-        duration: "2–3 hours",
-        description:
-          "Complete yard cleanup including debris removal and surface clearing.",
-        buttonText: "Book Service",
-      },
-      {
-        icon: Scissors,
-        title: "Hedge Trimming",
-        price: 50,
-        duration: "1–2 hours",
-        description:
-          "Professional hedge trimming with shaping and debris removal.",
-        buttonText: "Get Started",
-        buttonVariant: "secondary",
-      },
-      {
-        icon: Scissors,
-        title: "Bush & Shrub Trimming",
-        price: 45,
-        duration: "1–2 hours",
-        description:
-          "Trimming bushes and shrubs to enhance yard appearance.",
-        buttonText: "Get Started",
-        buttonVariant: "secondary",
-      },
-      {
-        icon: Leaf,
-        title: "Garden Bed Cleanup",
-        price: 60,
-        duration: "1–2 hours",
-        description:
-          "Cleaning garden beds, removing weeds, leaves, and debris.",
-        buttonText: "Book Service",
-      },
-      {
-        icon: Droplets,
-        title: "Mulching",
-        price: 80,
-        duration: "2–3 hours",
-        description:
-          "Mulch installation to protect soil and improve landscape look.",
-        buttonText: "Book Service",
-      },
-      {
-        icon: Wind,
-        title: "Snow Shoveling (Seasonal)",
-        price: 35,
-        duration: "30–90 min",
-        description:
-          "Snow removal from driveways and walkways during winter.",
-        buttonText: "Book Service",
-      },
-      {
-        icon: Sparkles,
-        title: "Storm Debris Cleanup",
-        price: 90,
-        duration: "2–4 hours",
-        description:
-          "Post-storm debris and fallen branch cleanup.",
-        buttonText: "Book Service",
-      },
-    ],
-  },
-
-  pet: {
-    title: "Pet & Property Cleanup",
-    subtitle: "Clean, safe & hygienic outdoor environments",
-    services: [
-      {
-        icon: Home,
-        title: "Dog Poop / Pet Waste Removal",
-        price: 25,
-        duration: "20–45 min",
-        description:
-          "Removal of pet waste from yards to maintain hygiene.",
-        buttonText: "Book Now",
-      },
-      {
-        icon: Droplets,
-        title: "Yard Sanitizing (Pet Areas)",
-        price: 40,
-        duration: "45–60 min",
-        description:
-          "Sanitizing pet areas to eliminate odor and bacteria.",
-        buttonText: "Book Now",
-      },
-      {
-        icon: Sparkles,
-        title: "Litter Cleanup (Outdoor)",
-        price: 30,
-        duration: "30–60 min",
-        description:
-          "Removal of trash and litter from outdoor areas.",
-        buttonText: "Book Now",
-      },
-    ],
-  },
-
-  vehicle: {
-    title: "Vehicle Convenience Services",
-    subtitle: "On-demand vehicle care at your location",
-    services: [
-      {
-        icon: Car,
-        title: "Gas Filling (On-Site)",
-        price: 15,
-        duration: "15–20 min",
-        description:
-          "Fuel delivery service (fuel cost not included).",
-        buttonText: "Request Service",
-      },
-      {
-        icon: Droplets,
-        title: "Windshield Washer Fluid Refill",
-        price: 15,
-        duration: "10–15 min",
-        description:
-          "Refill of windshield washer fluid for better visibility.",
-        buttonText: "Book Now",
-      },
-      {
-        icon: Wrench,
-        title: "Tire Air Fill",
-        price: 15,
-        duration: "10–20 min",
-        description:
-          "Proper tire pressure check and air fill.",
-        buttonText: "Book Now",
-      },
-      {
-        icon: Car,
-        title: "Car Exterior Wash",
-        price: 30,
-        duration: "30–45 min",
-        description:
-          "Exterior driveway car wash service.",
-        buttonText: "Book Now",
-      },
-      {
-        icon: Sparkles,
-        title: "Interior Vacuuming",
-        price: 25,
-        duration: "20–40 min",
-        description:
-          "Interior vacuuming of seats, floors, and mats.",
-        buttonText: "Book Now",
-      },
-    ],
-  },
-
-  home: {
-    title: "Home Exterior Tasks",
-    subtitle: "Maintain and refresh your home exterior",
-    services: [
-      {
-        icon: Sparkles,
-        title: "Trash Bin Cleaning & Disinfecting",
-        price: 25,
-        duration: "20–30 min",
-        description:
-          "Deep cleaning and disinfecting of trash bins.",
-        buttonText: "Book Service",
-      },
-      {
-        icon: Droplets,
-        title: "Pressure Washing",
-        price: 80,
-        duration: "1–2 hours",
-        description:
-          "Pressure washing for driveways, sidewalks, and patios.",
-        buttonText: "Book Service",
-      },
-      {
-        icon: Wind,
-        title: "Gutter Debris Removal",
-        price: 60,
-        duration: "1–2 hours",
-        description:
-          "Ground-level gutter debris removal for smooth drainage.",
-        buttonText: "Book Service",
-      },
-      {
-        icon: Sparkles,
-        title: "Window Washing (Ground-Level)",
-        price: 40,
-        duration: "1–2 hours",
-        description:
-          "Exterior window washing for ground-level windows.",
-        buttonText: "Book Service",
-      },
-      {
-        icon: Home,
-        title: "Patio & Deck Sweeping",
-        price: 35,
-        duration: "30–60 min",
-        description:
-          "Sweeping patios and decks for a clean outdoor space.",
-        buttonText: "Book Service",
-      },
-    ],
-  },
-};
-
-
-  const tabs = [
-    { id: "yard", label: "Yard & Outdoor" },
-    { id: "pet", label: "Pet & Property" },
-    { id: "vehicle", label: "Vehicle Services" },
-    { id: "home", label: "Home Exterior" },
-  ];
-
-  const currentCategory = serviceCategories[activeTab];
+}) => {
+  const IconComponent = ICON_COMPONENTS[icon] || Sparkles;
 
   return (
-    <div className=" bg-white">
-      {/* Main Content */}
-      <main className=" px-6  ">
-        {/* Tabs */}
-        <div className="max-w-7xl mx-auto ">
-          <div className="flex flex-wrap gap-2 justify-between mb-8 ">
-            {tabs.map((tab) => (
+    <div className="flex flex-col p-6 transition-shadow bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md">
+      <div className="flex items-center justify-center w-12 h-12 mb-4 bg-gray-100 rounded-lg">
+        <IconComponent className="w-6 h-6 text-gray-700" />
+      </div>
+      <h3 className="mb-2 text-lg font-semibold text-gray-900">{title}</h3>
+      <div className="flex items-baseline gap-2 mb-1">
+        <span className="text-3xl font-bold text-gray-900">${formatPrice(price)}</span>
+        <span className="text-sm text-gray-500">starting</span>
+      </div>
+      <p className="mb-4 text-sm text-gray-500">{duration}</p>
+      <p className="grow text-sm text-gray-600">{description}</p>
+
+      <Link
+        href="/book"
+        className={`mt-6 inline-flex w-full items-center justify-center rounded-lg px-4 py-3 font-medium transition-colors ${
+          buttonVariant === "secondary"
+            ? "border-2 border-green-800 bg-white text-green-800 hover:bg-green-50"
+            : "bg-green-800 text-white hover:bg-green-900"
+        }`}
+      >
+        {buttonText}
+      </Link>
+    </div>
+  );
+};
+
+const ServicePricing = () => {
+  const [categories, setCategories] = useState(() => clonePricingCategories());
+  const [activeTab, setActiveTab] = useState("yard");
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadPricingContent = async () => {
+      setIsLoading(true);
+      setLoadError("");
+
+      try {
+        const content = await contentApi.getContentByKey(PRICING_CONTENT_KEY);
+
+        if (ignore) {
+          return;
+        }
+
+        const nextCategories = normalizePricingCategories(content?.value?.categories);
+        setCategories(nextCategories);
+        setActiveTab((currentTab) =>
+          nextCategories.some((category) => category.id === currentTab)
+            ? currentTab
+            : nextCategories[0]?.id || "yard"
+        );
+      } catch (apiError) {
+        if (ignore) {
+          return;
+        }
+
+        if (apiError?.response?.status !== 404) {
+          setLoadError("Showing default pricing because live pricing could not be loaded.");
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadPricingContent();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const currentCategory =
+    categories.find((category) => category.id === activeTab) || categories[0];
+
+  if (!currentCategory) {
+    return null;
+  }
+
+  return (
+    <div className="bg-white">
+      <main className="px-6">
+        <div className="max-w-7xl mx-auto">
+          {isLoading ? (
+            <div className="mb-6 text-sm text-center text-gray-500">
+              Loading latest pricing...
+            </div>
+          ) : null}
+
+          {loadError ? (
+            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              {loadError}
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap justify-between gap-2 mb-8">
+            {categories.map((tab) => (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-12 py-3 font-medium transition-all relative ${
+                className={`relative px-12 py-3 font-medium transition-all ${
                   activeTab === tab.id
-                    ? "text-white border-2 rounded-md bg-[#0A3019]  border-green-800"
+                    ? "rounded-md border-2 border-green-800 bg-[#0A3019] text-white"
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
@@ -324,20 +155,25 @@ const ServicePricing = () => {
             ))}
           </div>
 
-          {/* Category Content */}
           <div className="animate-fadeIn">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            <div className="mb-8 text-center">
+              <h2 className="mb-2 text-3xl font-bold text-gray-900">
                 {currentCategory.title}
               </h2>
               <p className="text-gray-600">{currentCategory.subtitle}</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {currentCategory.services.map((service, index) => (
-                <ServiceCard key={index} {...service} />
-              ))}
-            </div>
+            {currentCategory.services.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-gray-300 px-6 py-12 text-center text-sm text-gray-500">
+                No pricing entries are available in this category yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {currentCategory.services.map((service) => (
+                  <ServiceCard key={service.id} {...service} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </main>
@@ -353,6 +189,7 @@ const ServicePricing = () => {
             transform: translateY(0);
           }
         }
+
         .animate-fadeIn {
           animation: fadeIn 0.3s ease-out;
         }
@@ -360,4 +197,5 @@ const ServicePricing = () => {
     </div>
   );
 };
+
 export default ServicePricing;

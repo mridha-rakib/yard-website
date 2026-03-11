@@ -7,50 +7,8 @@ import {
 import ServicePricing from "@/app/component/ServicePricing";
 import Banner from "@/app/component/Banner";
 
-const page = () => {
+const PricingPage = () => {
   const [expandedFaq, setExpandedFaq] = useState(null);
-
-  const pricingPlans = [
-    {
-      name: "Pay Per Task",
-      price: "$45",
-      period: "per task",
-      popular: false,
-      features: [
-        "Pay per completed task",
-        "No subscription",
-        "Instant booking",
-        "Background-checked workers",
-        "Money-back guarantee",
-      ],
-    },
-    {
-      name: "Monthly Plan",
-      price: "$150",
-      period: "per month",
-      popular: true,
-      features: [
-        "Up to 4 tasks per month",
-        "Priority scheduling",
-        "Dedicated workers",
-        "Save 15% vs per task",
-        "24/7 customer support",
-      ],
-    },
-    {
-      name: "Annual Plan",
-      price: "$65",
-      period: "per month",
-      popular: false,
-      features: [
-        "48 tasks per year",
-        "Best value - save 30%",
-        "Priority scheduling",
-        "Dedicated workers",
-        "Premium support",
-      ],
-    },
-  ];
 
   const faqs = [
     {
@@ -154,4 +112,4 @@ const page = () => {
     </div>
   );
 };
-export default page;
+export default PricingPage;
