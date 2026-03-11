@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { MdClose, MdMenu } from "react-icons/md";
+import { buildLoginPath } from "@/lib/auth/auth-redirect";
 import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 import { useAuthStore } from "@/stores/use-auth-store";
 
@@ -61,6 +62,40 @@ const getPrimaryActionLabel = (user) => {
   return "Browse";
 };
 
+const getProfileHref = (user) => {
+  if (user?.role === "worker") {
+    return "/profile";
+  }
+
+  if (user?.role === "customer") {
+    return "/my-profile";
+  }
+
+  return "/";
+};
+
+const getRoleLabel = (user) => {
+  if (user?.role === "worker") {
+    return "Worker";
+  }
+
+  if (user?.role === "customer") {
+    return "Customer";
+  }
+
+  return "Guest";
+};
+
+const getUserShortName = (user) => {
+  const rawName = String(user?.name || "").trim();
+
+  if (!rawName) {
+    return "Account";
+  }
+
+  return rawName.split(/\s+/)[0];
+};
+
 const getAccountLabel = (user) => {
   if (user?.role === "worker") {
     return "Worker Home";
@@ -84,6 +119,8 @@ export default function Navbar() {
   const isWorkerPage = workerRoutes.some((route) => pathname.startsWith(route));
   const navLinks = isWorkerPage ? workerLinks : publicLinks;
   const accountHref = getDefaultPathForUser(user);
+  const profileHref = getProfileHref(user);
+  const guestBookHref = buildLoginPath("/book");
 
   const handleLogout = async () => {
     await logout();
@@ -94,32 +131,53 @@ export default function Navbar() {
   return (
     <nav className="w-full bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center">
+        <div className="flex h-16 items-center gap-8">
+          <Link href="/" className="flex shrink-0 items-center">
             <img src="/Logo.png" alt="Logo" className="h-10 w-auto" />
           </Link>
 
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium">
+          <div className="hidden md:flex flex-1 items-center justify-center gap-6 text-sm font-medium">
             {navLinks.map((link) => (
-              <NavLink key={link.href} href={link.href} active={pathname === link.href}>
+              <NavLink
+                key={link.href}
+                href={!isAuthenticated && link.href === "/book" ? guestBookHref : link.href}
+                active={pathname === link.href}
+              >
                 {link.label}
               </NavLink>
             ))}
           </div>
 
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex shrink-0 items-center gap-3">
             {isAuthenticated && user ? (
               <>
                 <Link
+                  href={profileHref}
+                  className="inline-flex items-center gap-3 rounded-full border border-[#d7e0d9] bg-[#f8faf8] px-3 py-2 transition-colors hover:bg-[#f2f6f2]"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0A3019] text-xs font-semibold text-white">
+                    {getUserShortName(user).slice(0, 1).toUpperCase()}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-[#111827]">
+                      {getUserShortName(user)}
+                    </span>
+                    <span className="rounded-full bg-[#0A3019] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
+                      {getRoleLabel(user)}
+                    </span>
+                  </div>
+                </Link>
+
+                <Link
                   href={accountHref}
-                  className="text-sm font-medium text-gray-700 hover:text-green-700"
+                  className="whitespace-nowrap text-sm font-medium text-gray-700 hover:text-green-700"
                 >
                   {getAccountLabel(user)}
                 </Link>
 
                 <Link
                   href={getPrimaryActionHref(user)}
-                  className="px-5 py-2 bg-green-900 text-white rounded-md hover:bg-green-800 transition"
+                  className="whitespace-nowrap rounded-md bg-green-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-800"
                 >
                   {getPrimaryActionLabel(user)}
                 </Link>
@@ -128,7 +186,7 @@ export default function Navbar() {
                   type="button"
                   onClick={handleLogout}
                   disabled={isInitializing}
-                  className="px-4 py-2 border rounded-md text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="whitespace-nowrap rounded-md border px-4 py-2 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isInitializing ? "Logging Out..." : "Log Out"}
                 </button>
@@ -137,14 +195,14 @@ export default function Navbar() {
               <>
                 <Link
                   href="/login"
-                  className="text-sm font-medium text-gray-700 hover:text-green-700"
+                  className="whitespace-nowrap text-sm font-medium text-gray-700 hover:text-green-700"
                 >
                   Login
                 </Link>
 
                 <Link
                   href="/registration"
-                  className="px-5 py-2 bg-green-900 text-white rounded-md hover:bg-green-800 transition"
+                  className="whitespace-nowrap rounded-md bg-green-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-green-800"
                 >
                   Apply as a Worker
                 </Link>
@@ -153,21 +211,21 @@ export default function Navbar() {
               <>
                 <Link
                   href="/login"
-                  className="text-sm font-medium text-gray-700 hover:text-green-700"
+                  className="whitespace-nowrap text-sm font-medium text-gray-700 hover:text-green-700"
                 >
                   Login
                 </Link>
 
                 <Link
                   href="/sign-up"
-                  className="px-4 py-2 border rounded-md text-sm hover:bg-gray-50"
+                  className="whitespace-nowrap rounded-md border px-4 py-2 text-sm hover:bg-gray-50"
                 >
                   Sign Up
                 </Link>
 
                 <Link
-                  href="/book"
-                  className="px-5 py-2 bg-green-900 text-white rounded-md hover:bg-green-800 transition"
+                  href={guestBookHref}
+                  className="whitespace-nowrap rounded-md bg-green-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-green-800"
                 >
                   Book Yard Work
                 </Link>
@@ -178,7 +236,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setOpen((currentValue) => !currentValue)}
-            className="md:hidden text-gray-700"
+            className="ml-auto md:hidden text-gray-700"
           >
             {open ? <MdClose size={28} /> : <MdMenu size={28} />}
           </button>
@@ -188,7 +246,11 @@ export default function Navbar() {
       {open ? (
         <div className="md:hidden bg-white border-t px-4 py-6 space-y-4 text-sm">
           {navLinks.map((link) => (
-            <MobileLink key={link.href} href={link.href} setOpen={setOpen}>
+            <MobileLink
+              key={link.href}
+              href={!isAuthenticated && link.href === "/book" ? guestBookHref : link.href}
+              setOpen={setOpen}
+            >
               {link.label}
             </MobileLink>
           ))}
@@ -196,6 +258,24 @@ export default function Navbar() {
           <div className="pt-4 border-t space-y-3">
             {isAuthenticated && user ? (
               <>
+                <Link
+                  href={profileHref}
+                  onClick={() => setOpen(false)}
+                  className="inline-flex items-center gap-3 rounded-full border border-[#d7e0d9] bg-[#f8faf8] px-3 py-2"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0A3019] text-xs font-semibold text-white">
+                    {getUserShortName(user).slice(0, 1).toUpperCase()}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-[#111827]">
+                      {getUserShortName(user)}
+                    </span>
+                    <span className="rounded-full bg-[#0A3019] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
+                      {getRoleLabel(user)}
+                    </span>
+                  </div>
+                </Link>
+
                 <MobileLink href={accountHref} setOpen={setOpen}>
                   {getAccountLabel(user)}
                 </MobileLink>
@@ -228,7 +308,7 @@ export default function Navbar() {
                 <MobileLink href="/sign-up" setOpen={setOpen}>
                   Sign Up
                 </MobileLink>
-                <MobileLink href="/book" setOpen={setOpen}>
+                <MobileLink href={guestBookHref} setOpen={setOpen}>
                   Book Yard Work
                 </MobileLink>
               </>

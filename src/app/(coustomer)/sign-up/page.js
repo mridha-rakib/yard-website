@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, Phone, User, UserPlus } from "lucide-react";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { buildLoginPath, getPostAuthPath, sanitizeRedirectTo } from "@/lib/auth/auth-redirect";
 import { getApiErrorMessage } from "@/lib/api/http";
 import { useAuthStore } from "@/stores/use-auth-store";
 
@@ -50,21 +50,25 @@ const validateSignUpForm = (formData) => {
 
 const SignUpPage = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const registerCustomer = useAuthStore((state) => state.registerCustomer);
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isInitializing = useAuthStore((state) => state.isInitializing);
+  const redirectTo = sanitizeRedirectTo(searchParams.get("redirectTo"));
   const [formData, setFormData] = useState(initialFormData);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
+  const loginHref = buildLoginPath(redirectTo);
+  const postAuthPath = getPostAuthPath(user, redirectTo);
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      router.replace(getDefaultPathForUser(user));
+      router.replace(postAuthPath);
     }
-  }, [isAuthenticated, router, user]);
+  }, [isAuthenticated, postAuthPath, router, user]);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -104,7 +108,7 @@ const SignUpPage = () => {
         password: formData.password,
       });
 
-      router.replace(getDefaultPathForUser(session.user));
+      router.replace(getPostAuthPath(session.user, redirectTo));
     } catch (error) {
       setSubmitError(getApiErrorMessage(error));
     }
@@ -312,7 +316,7 @@ const SignUpPage = () => {
             <p className="text-gray-600">
               Already have an account?{" "}
               <Link
-                href="/login"
+                href={loginHref}
                 className="text-green-700 font-bold hover:text-green-800 transition-colors"
               >
                 Log In

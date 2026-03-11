@@ -1,325 +1,531 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { MapPin, Clock, Leaf, Wrench, Plus } from 'lucide-react';
-import Link from 'next/link';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Car,
+  Droplets,
+  Home,
+  Leaf,
+  LoaderCircle,
+  MapPin,
+  Scissors,
+  Sparkles,
+  Wind,
+} from "lucide-react";
+import { bookingsApi } from "@/lib/api/bookings-api";
+import { jobsApi } from "@/lib/api/jobs-api";
+import { getApiErrorMessage } from "@/lib/api/http";
+import { buildLoginPath } from "@/lib/auth/auth-redirect";
+import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { formatPrice } from "@/lib/pricing-content";
+import { useAuthStore } from "@/stores/use-auth-store";
 
-const page = () => {
-  const [activeTab, setActiveTab] = useState('new');
-  
-  const [jobs, setJobs] = useState([
-    {
-      id: 1,
-      title: 'Lawn Mowing',
-      location: 'Springfield, 62704',
-      date: 'Today, 2:00 PM',
-      price: 45,
-      status: 'new',
-      icon: '🌿',
-      badge: 'New'
-    },
-    {
-      id: 2,
-      title: 'Yard Cleanup',
-      location: 'Riverside, 62521',
-      date: 'Tomorrow, 10:00 AM',
-      price: 65,
-      status: 'new',
-      icon: '🧹',
-      badge: 'New'
-    },
-    {
-      id: 3,
-      title: 'Leaf Removal',
-      location: 'Lincoln, 62656',
-      date: 'Tomorrow, 3:00 PM',
-      price: 55,
-      status: 'new',
-      icon: '🍂',
-      badge: 'New'
-    },
-    {
-      id: 4,
-      title: 'Lawn Mowing & Edging',
-      location: 'Chatham, 62629',
-      date: 'May 15, 9:00 AM',
-      price: 50,
-      status: 'accepted',
-      icon: '🌿',
-      badge: 'Accepted'
-    },
-    {
-      id: 5,
-      title: 'Garden Weeding',
-      location: 'Auburn, 62615',
-      date: 'Mar 16, 1:00 PM',
-      price: 40,
-      status: 'accepted',
-      icon: '🌱',
-      badge: 'Accepted'
-    },
-    {
-      id: 6,
-      title: 'Lawn Mowing',
-      location: 'Sherman, 62684',
-      date: 'Today, 11:30 AM',
-      price: 48,
-      status: 'in-progress',
-      icon: '🌿',
-      badge: 'In Progress'
-    },
-    {
-      id: 7,
-      title: 'Tree Trimming',
-      location: 'Springfield, 62702',
-      date: 'Completed',
-      price: 120,
-      status: 'completed',
-      icon: '🌳',
-      badge: 'Completed'
+const PAGE_LIMIT = 100;
+
+const tabs = [
+  { id: "new", label: "New Jobs" },
+  { id: "accepted", label: "Accepted" },
+  { id: "in_progress", label: "In Progress" },
+  { id: "completed", label: "Completed" },
+];
+
+const statusLabels = {
+  new: "New",
+  assigned: "Accepted",
+  in_progress: "In Progress",
+  completed: "Completed",
+};
+
+const timeLabels = {
+  anytime: "Any time",
+  morning: "Morning",
+  afternoon: "Afternoon",
+  evening: "Evening",
+};
+
+const getServiceIcon = (serviceType = "") => {
+  const normalizedValue = String(serviceType).toLowerCase();
+
+  if (normalizedValue.includes("leaf") || normalizedValue.includes("lawn")) {
+    return Leaf;
+  }
+
+  if (normalizedValue.includes("weed") || normalizedValue.includes("snow")) {
+    return Wind;
+  }
+
+  if (normalizedValue.includes("trim")) {
+    return Scissors;
+  }
+
+  if (
+    normalizedValue.includes("wash") ||
+    normalizedValue.includes("pressure") ||
+    normalizedValue.includes("sanit")
+  ) {
+    return Droplets;
+  }
+
+  if (normalizedValue.includes("car") || normalizedValue.includes("vehicle")) {
+    return Car;
+  }
+
+  if (normalizedValue.includes("home") || normalizedValue.includes("patio")) {
+    return Home;
+  }
+
+  return Sparkles;
+};
+
+const getStatusTone = (status = "new") => {
+  if (status === "assigned") {
+    return "bg-[#eef7f0] text-[#166534]";
+  }
+
+  if (status === "in_progress") {
+    return "bg-[#ecfdf3] text-[#027a48]";
+  }
+
+  if (status === "completed") {
+    return "bg-[#f3f4f6] text-[#4b5563]";
+  }
+
+  return "bg-[#eff6ff] text-[#1d4ed8]";
+};
+
+const formatCurrency = (value) => `$${formatPrice(value || 0)}`;
+
+const formatLocation = (job) =>
+  [job?.city, job?.state, job?.zipCode].filter(Boolean).join(", ") || "Location pending";
+
+const formatPreferredDate = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(parsedDate);
+};
+
+const formatSchedule = (job) => {
+  if (job?.status === "completed") {
+    return "Completed";
+  }
+
+  const dateLabel = formatPreferredDate(job?.preferredDate);
+  const timeLabel = timeLabels[job?.preferredTime] || job?.preferredTime || "";
+
+  if (dateLabel && timeLabel) {
+    return `${dateLabel}, ${timeLabel}`;
+  }
+
+  if (dateLabel) {
+    return dateLabel;
+  }
+
+  if (timeLabel) {
+    return timeLabel;
+  }
+
+  return "Flexible schedule";
+};
+
+export default function AllJobsPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isReady = useAuthStore((state) => state.isReady);
+  const [activeTab, setActiveTab] = useState("new");
+  const [availableJobs, setAvailableJobs] = useState([]);
+  const [myJobs, setMyJobs] = useState([]);
+  const [counts, setCounts] = useState({
+    new: 0,
+    accepted: 0,
+    in_progress: 0,
+    completed: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const [pendingActionKey, setPendingActionKey] = useState("");
+  const [requestVersion, setRequestVersion] = useState(0);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
     }
-  ]);
 
-  const getJobsByStatus = (status) => {
-    return jobs.filter(job => job.status === status);
+    if (!isAuthenticated) {
+      router.replace(buildLoginPath(pathname));
+      return;
+    }
+
+    if (user?.role && user.role !== "worker") {
+      router.replace(getDefaultPathForUser(user));
+      return;
+    }
+  }, [isAuthenticated, isReady, pathname, router, user]);
+
+  useEffect(() => {
+    if (!isReady || !isAuthenticated || user?.role !== "worker") {
+      return;
+    }
+
+    let isActive = true;
+
+    const loadJobs = async () => {
+      setIsLoading(true);
+
+      try {
+        const [availableResult, myJobsResult] = await Promise.all([
+          jobsApi.listAvailableJobs({ limit: PAGE_LIMIT }),
+          jobsApi.listMyJobs({ limit: PAGE_LIMIT }),
+        ]);
+
+        if (!isActive) {
+          return;
+        }
+
+        setAvailableJobs(availableResult.items);
+        setMyJobs(myJobsResult.items);
+        setCounts({
+          new: availableResult.pagination?.total || availableResult.items.length,
+          accepted:
+            myJobsResult.summary?.assigned ||
+            myJobsResult.items.filter((job) => job.status === "assigned").length,
+          in_progress:
+            myJobsResult.summary?.inProgress ||
+            myJobsResult.items.filter((job) => job.status === "in_progress").length,
+          completed:
+            myJobsResult.summary?.completed ||
+            myJobsResult.items.filter((job) => job.status === "completed").length,
+        });
+        setPageError("");
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setPageError(getApiErrorMessage(error));
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadJobs();
+
+    return () => {
+      isActive = false;
+    };
+  }, [isAuthenticated, isReady, requestVersion, user]);
+
+  const acceptedJobs = myJobs.filter((job) => job.status === "assigned");
+  const inProgressJobs = myJobs.filter((job) => job.status === "in_progress");
+  const completedJobs = myJobs.filter((job) => job.status === "completed");
+
+  const jobsByTab = {
+    new: availableJobs,
+    accepted: acceptedJobs,
+    in_progress: inProgressJobs,
+    completed: completedJobs,
   };
 
-  const getStatusCount = (status) => {
-    return getJobsByStatus(status).length;
-  };
+  const displayedJobs = jobsByTab[activeTab] || [];
 
-  const handleAcceptJob = (jobId) => {
-    setJobs(jobs.map(job => 
-      job.id === jobId ? { ...job, status: 'accepted', badge: 'Accepted' } : job
-    ));
-  };
+  const runAction = async (actionKey, request, successMessage, nextTab) => {
+    setPendingActionKey(actionKey);
+    setActionError("");
+    setActionMessage("");
 
-  const handleDeclineJob = (jobId) => {
-    setJobs(jobs.filter(job => job.id !== jobId));
-  };
+    try {
+      await request();
+      setActionMessage(successMessage);
 
-  const handleStartJob = (jobId) => {
-    setJobs(jobs.map(job => 
-      job.id === jobId ? { ...job, status: 'in-progress', badge: 'In Progress' } : job
-    ));
-  };
+      if (nextTab) {
+        setActiveTab(nextTab);
+      }
 
-  const handleCompleteJob = (jobId) => {
-    setJobs(jobs.map(job => 
-      job.id === jobId ? { ...job, status: 'completed', badge: 'Completed' } : job
-    ));
-  };
-
-  const displayedJobs = getJobsByStatus(activeTab);
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'new': return 'text-blue-700 bg-blue-50';
-      case 'accepted': return 'text-yellow-700 bg-yellow-50';
-      case 'in-progress': return 'text-[#0a3019] bg-green-50';
-      case 'completed': return '[#4B5563] bg-gray-50';
-      default: return '[#4B5563] bg-gray-50';
+      setRequestVersion((currentValue) => currentValue + 1);
+    } catch (error) {
+      setActionError(getApiErrorMessage(error));
+    } finally {
+      setPendingActionKey("");
     }
   };
+
+  const handleAcceptJob = (jobId) =>
+    runAction(
+      `accept:${jobId}`,
+      () => jobsApi.acceptJob(jobId),
+      "Job accepted. It is now assigned to you.",
+      "accepted"
+    );
+
+  const handleStartJob = (job) => {
+    if (!job?.booking?._id) {
+      setActionError("This job is missing an active booking record.");
+      return;
+    }
+
+    runAction(
+      `start:${job._id}`,
+      () => bookingsApi.startBooking(job.booking._id),
+      "Job started successfully.",
+      "in_progress"
+    );
+  };
+
+  const handleCompleteJob = (job) => {
+    if (!job?.booking?._id) {
+      setActionError("This job is missing an active booking record.");
+      return;
+    }
+
+    runAction(
+      `complete:${job._id}`,
+      () => bookingsApi.completeBooking(job.booking._id),
+      "Job marked as completed.",
+      "completed"
+    );
+  };
+
+  if (!isReady || !isAuthenticated || user?.role !== "worker") {
+    return <div className="min-h-screen bg-[#f6f8f6]" />;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 max-w-7xl">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">All Jobs</h1>
-          <p className="text-gray-600">View and manage your current and past jobs.</p>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex flex-wrap border-2 border-[#e5e7eb] py-2.5 px-3 rounded-md gap-3 mb-8">
-          <button
-            onClick={() => setActiveTab('new')}
-            className={`px-20 py-3 rounded-md font-semibold transition-all duration-300 ${
-              activeTab === 'new'
-                ? 'bg-[#0a3019] text-white shadow-lg scale-105'
-                : 'bg-white text-[#4B5563] hover:bg-gray-50'
-            }`}
-          >
-            New Jobs
-            <span className="ml-2 px-2 py-1 bg-white text-[#0A3019] bg-opacity-20 rounded-full text-xs">
-              {getStatusCount('new')}
-            </span>
-          </button>
+    <div className="min-h-screen bg-[#f6f8f6] py-8">
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-[#0f172a]">All Jobs</h1>
+            <p className="mt-2 text-sm text-[#52606d]">
+              Review open requests, accept new work, and manage the jobs already assigned
+              to you.
+            </p>
+          </div>
 
           <button
-            onClick={() => setActiveTab('accepted')}
-            className={`px-20 py-3 rounded-md font-semibold transition-all duration-300 ${
-              activeTab === 'accepted'
-                ? 'bg-[#0a3019] text-white shadow-lg scale-105'
-                : 'bg-white text-[#4B5563] hover:bg-gray-50'
-            }`}
+            type="button"
+            onClick={() => setRequestVersion((currentValue) => currentValue + 1)}
+            className="inline-flex items-center justify-center rounded-full border border-[#d7e0d9] bg-white px-4 py-2 text-sm font-semibold text-[#334155] transition-colors hover:bg-[#f9fbf9]"
           >
-            Accepted
-            <span className="ml-2 px-2 py-1 bg-white text-[#0A3019] bg-opacity-20 rounded-full text-xs">
-              {getStatusCount('accepted')}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('in-progress')}
-            className={`px-20 py-3 rounded-md font-semibold transition-all duration-300 ${
-              activeTab === 'in-progress'
-                ? 'bg-[#0a3019] text-white shadow-lg scale-105'
-                : 'bg-white text-[#4B5563] hover:bg-gray-50'
-            }`}
-          >
-            In Progress
-            <span className="ml-2 px-2 py-1 bg-white text-[#0A3019] bg-opacity-20 rounded-full text-xs">
-              {getStatusCount('in-progress')}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('completed')}
-            className={`px-20 py-3 rounded-md font-semibold transition-all duration-300 ${
-              activeTab === 'completed'
-                ? 'bg-[#0a3019] text-white shadow-lg scale-105'
-                : 'bg-white text-[#4B5563] hover:bg-gray-50'
-            }`}
-          >
-            Completed
-            <span className="ml-2 px-2 py-1 bg-white text-[#0A3019] bg-opacity-20 rounded-full text-xs">
-              {getStatusCount('completed')}
-            </span>
+            Refresh Jobs
           </button>
         </div>
 
-        {/* Jobs List */}
-        <div className="space-y-4">
-          {displayedJobs.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-              <div className="bg-gray-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-                <Leaf className="w-10 h-10 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">No jobs found</h3>
-              <p className="text-gray-600">There are no {activeTab.replace('-', ' ')} jobs at the moment.</p>
-            </div>
-          ) : (
-            displayedJobs.map((job) => (
-              <div
-                key={job.id}
-                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+        {pageError ? (
+          <div className="mb-6 rounded-2xl border border-[#f2d0d0] bg-[#fff8f8] px-4 py-3 text-sm text-[#b42318]">
+            {pageError}
+          </div>
+        ) : null}
+
+        {actionMessage ? (
+          <div className="mb-6 rounded-2xl border border-[#cfe5d5] bg-[#f7fbf8] px-4 py-3 text-sm text-[#166534]">
+            {actionMessage}
+          </div>
+        ) : null}
+
+        {actionError ? (
+          <div className="mb-6 rounded-2xl border border-[#f2d0d0] bg-[#fff8f8] px-4 py-3 text-sm text-[#b42318]">
+            {actionError}
+          </div>
+        ) : null}
+
+        <div className="mb-8 grid gap-3 rounded-[28px] border border-[#d8e4db] bg-white p-3 md:grid-cols-4">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`rounded-[22px] px-4 py-4 text-sm font-semibold transition-colors ${
+                activeTab === tab.id
+                  ? "bg-[#0A3019] text-white"
+                  : "bg-[#f8faf8] text-[#475569] hover:bg-[#f1f5f2]"
+              }`}
+            >
+              {tab.label}
+              <span
+                className={`ml-2 inline-flex min-w-7 items-center justify-center rounded-full px-2 py-0.5 text-xs ${
+                  activeTab === tab.id ? "bg-white text-[#0A3019]" : "bg-white text-[#475569]"
+                }`}
               >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  {/* Left Section - Job Info */}
-                  <div className="flex items-start space-x-4 flex-1">
-                    <div className=" rounded-mdp-3 text-2xl">
-                      {job.icon}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start gap-3 mb-2">
-                        <h3 className="text-xl font-bold text-gray-900">{job.title}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(job.status)}`}>
-                          {job.badge}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                        <div className="flex items-center">
-                          <MapPin className="w-4 h-4 mr-1.5 text-gray-400" />
-                          <span>{job.location}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="w-4 h-4 mr-1.5 text-gray-400" />
-                          <span>{job.date}</span>
-                        </div>
-                      </div>
-                      <div className="mt-3">
-                        <span className="text-3xl font-bold text-gray-900">${job.price}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Section - Actions */}
-                  <div className="flex flex-wrap gap-3 lg:justify-end">
-                    {job.status === 'new' && (
-                      <>
-                        <button
-                          onClick={() => handleDeclineJob(job.id)}
-                          className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold [#4B5563] hover:bg-gray-50 transition-all"
-                        >
-                          Decline
-                        </button>
-                        <Link 
-                         href={'/all-jobs/job-details'}
-                          // onClick={() => alert(`Viewing details for ${job.title}`)}
-                          className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold [#4B5563] hover:bg-gray-50 transition-all"
-                        >
-                          Job Details
-                        </Link>
-                        <button
-                          onClick={() => handleAcceptJob(job.id)}
-                          className="px-6 py-3 bg-[#0a3019] text-white rounded-lg font-semibold hover:bg-green-800 transition-all shadow-lg hover:shadow-xl"
-                        >
-                          Accept Job
-                        </button>
-                      </>
-                    )}
-
-                    {job.status === 'accepted' && (
-                      <>
-                        <Link 
-                        href={'/all-jobs/job-details'}
-                          // onClick={() => alert(`Viewing details for ${job.title}`)}
-                          className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold [#4B5563] hover:bg-gray-50 transition-all"
-                        >
-                          Job Details
-                        </Link>
-                        <button
-                          onClick={() => handleStartJob(job.id)}
-                          className="px-6 py-3 bg-[#0a3019] text-white rounded-lg font-semibold hover:bg-green-800 transition-all shadow-lg hover:shadow-xl"
-                        >
-                          Start Job
-                        </button>
-                      </>
-                    )}
-
-                    {job.status === 'in-progress' && (
-                      <>
-                        <Link 
-                        href={'/all-jobs/job-details'}
-                          // onClick={() => alert(`Viewing details for ${job.title}`)}
-                          className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold [#4B5563] hover:bg-gray-50 transition-all"
-                        >
-                          Job Details
-                        </Link>
-                        <Link
-                         href={'/all-jobs/job-details'}
-                          // onClick={() => handleCompleteJob(job.id)}
-                          className="px-6 py-3 bg-[#0a3019] text-white rounded-lg font-semibold hover:bg-green-800 transition-all shadow-lg hover:shadow-xl"
-                        >
-                          Mark as Completed
-                        </Link>
-                      </>
-                    )}
-
-                    {job.status === 'completed' && (
-                      <Link
-                        href={'/all-jobs/job-details'}
-                        // onClick={() => alert(`Viewing details for ${job.title}`)}
-                        className="px-6 py-3 border-2 border-gray-300 rounded-lg font-semibold [#4B5563] hover:bg-gray-50 transition-all"
-                      >
-                        View Details
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
+                {counts[tab.id] || 0}
+              </span>
+            </button>
+          ))}
         </div>
 
-        {/* Add New Job Button */}
-        <button className="fixed bottom-8 right-8 bg-[#0a3019] text-white p-4 rounded-full shadow-2xl hover:bg-green-800 transition-all hover:scale-110">
-          <Plus className="w-6 h-6" />
-        </button>
+        {isLoading ? (
+          <div className="flex min-h-[260px] items-center justify-center rounded-[28px] border border-[#d8e4db] bg-white">
+            <div className="flex items-center gap-3 text-sm text-[#52606d]">
+              <LoaderCircle className="h-5 w-5 animate-spin" />
+              Loading jobs...
+            </div>
+          </div>
+        ) : displayedJobs.length === 0 ? (
+          <div className="rounded-[28px] border border-[#d8e4db] bg-white px-8 py-16 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f4f7f4]">
+              <Sparkles className="h-8 w-8 text-[#7c8a84]" />
+            </div>
+            <h2 className="mt-5 text-2xl font-semibold text-[#0f172a]">No jobs here right now</h2>
+            <p className="mt-2 text-sm text-[#52606d]">
+              {activeTab === "new"
+                ? "New customer requests will appear here as soon as they are available."
+                : "This tab is empty at the moment."}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {displayedJobs.map((job) => {
+              const JobIcon = getServiceIcon(job.serviceType);
+
+              return (
+                <article
+                  key={job._id}
+                  className="rounded-[28px] border border-[#d8e4db] bg-white p-6"
+                >
+                  <div className="flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="flex flex-1 items-start gap-4">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#f3f7f3] text-[#0A3019]">
+                        <JobIcon className="h-6 w-6" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <h2 className="text-2xl font-semibold text-[#0f172a]">{job.title}</h2>
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusTone(
+                              job.status
+                            )}`}
+                          >
+                            {statusLabels[job.status] || job.status}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-4 text-sm text-[#52606d]">
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="h-4 w-4 text-[#94a3b8]" />
+                            <span>{formatLocation(job)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Sparkles className="h-4 w-4 text-[#94a3b8]" />
+                            <span>{formatSchedule(job)}</span>
+                          </div>
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap items-end gap-5">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7280]">
+                              Customer Pays
+                            </p>
+                            <p className="mt-2 text-4xl font-bold text-[#0f172a]">
+                              {formatCurrency(job.payment?.amount || job.estimatedPrice)}
+                            </p>
+                          </div>
+
+                          {job.payment?.workerPayout ? (
+                            <div className="rounded-2xl border border-[#e2e8e3] bg-[#fbfdfb] px-4 py-3">
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7280]">
+                                Estimated Earnings
+                              </p>
+                              <p className="mt-1 text-lg font-semibold text-[#166534]">
+                                {formatCurrency(job.payment.workerPayout)}
+                              </p>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3 xl:justify-end">
+                      <Link
+                        href={`/all-jobs/job-details?jobId=${job._id}`}
+                        className="inline-flex items-center justify-center rounded-full border border-[#d5ddd7] px-5 py-3 text-sm font-semibold text-[#334155] transition-colors hover:bg-[#f8faf8]"
+                      >
+                        Job Details
+                      </Link>
+
+                      {job.status === "new" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleAcceptJob(job._id)}
+                          disabled={pendingActionKey === `accept:${job._id}`}
+                          className="inline-flex items-center justify-center rounded-full bg-[#0A3019] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0b4221] disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {pendingActionKey === `accept:${job._id}` ? (
+                            <>
+                              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                              Accepting...
+                            </>
+                          ) : (
+                            "Accept Job"
+                          )}
+                        </button>
+                      ) : null}
+
+                      {job.status === "assigned" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleStartJob(job)}
+                          disabled={
+                            pendingActionKey === `start:${job._id}` || !job?.booking?._id
+                          }
+                          className="inline-flex items-center justify-center rounded-full bg-[#0A3019] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0b4221] disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {pendingActionKey === `start:${job._id}` ? (
+                            <>
+                              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                              Starting...
+                            </>
+                          ) : (
+                            "Start Job"
+                          )}
+                        </button>
+                      ) : null}
+
+                      {job.status === "in_progress" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleCompleteJob(job)}
+                          disabled={
+                            pendingActionKey === `complete:${job._id}` || !job?.booking?._id
+                          }
+                          className="inline-flex items-center justify-center rounded-full bg-[#0A3019] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0b4221] disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {pendingActionKey === `complete:${job._id}` ? (
+                            <>
+                              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                              Completing...
+                            </>
+                          ) : (
+                            "Mark as Completed"
+                          )}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
 }
-export default page;

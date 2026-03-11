@@ -1,18 +1,30 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Check, Upload, X } from "lucide-react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  buildLoginPath,
+  buildPathWithSearchParams,
+} from "@/lib/auth/auth-redirect";
+import { getApiErrorMessage } from "@/lib/api/http";
+import { paymentApi } from "@/lib/api/payment-api";
+import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 import { getSelectedServiceFromSearchParams } from "@/lib/booking-service";
 import { formatPrice } from "@/lib/pricing-content";
+import { useAuthStore } from "@/stores/use-auth-store";
 
 function BookYardWorkFormContent() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isReady = useAuthStore((state) => state.isReady);
   const [formData, setFormData] = useState({
-    fullName: "",
-    phone: "",
-    email: "",
+    fullName: null,
+    phone: null,
+    email: null,
     streetAddress: "",
     city: "",
     zipCode: "",
@@ -24,17 +36,53 @@ function BookYardWorkFormContent() {
 
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const selectedService = useMemo(
     () => getSelectedServiceFromSearchParams(searchParams),
     [searchParams]
   );
+  const bookingPath = useMemo(
+    () => buildPathWithSearchParams(pathname, searchParams),
+    [pathname, searchParams]
+  );
+  const contactDetails = useMemo(
+    () => ({
+      fullName: (formData.fullName ?? user?.name ?? "").trim(),
+      phone: (formData.phone ?? user?.phone ?? "").trim(),
+      email: (formData.email ?? user?.email ?? "").trim(),
+    }),
+    [formData.email, formData.fullName, formData.phone, user]
+  );
   const hasSelectedService = Boolean(selectedService.title);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      router.replace(buildLoginPath(bookingPath));
+      return;
+    }
+
+    if (user?.role && user.role !== "customer") {
+      router.replace(getDefaultPathForUser(user));
+    }
+  }, [bookingPath, isAuthenticated, isReady, router, user]);
+
+  if (!isReady || !isAuthenticated || (user?.role && user.role !== "customer")) {
+    return <div className="min-h-screen bg-gray-50 py-8 px-4" />;
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+    if (submitError) {
+      setSubmitError("");
     }
   };
 
@@ -62,33 +110,70 @@ function BookYardWorkFormContent() {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.fullName.trim()) newErrors.fullName = "Full name is required";
-    if (!formData.phone.trim()) newErrors.phone = "Phone number is required";
-    if (!formData.email.trim()) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(formData.email))
+    if (!contactDetails.fullName) newErrors.fullName = "Full name is required";
+    if (!contactDetails.phone) newErrors.phone = "Phone number is required";
+    if (!contactDetails.email) newErrors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(contactDetails.email))
       newErrors.email = "Invalid email format";
     if (!formData.streetAddress.trim())
       newErrors.streetAddress = "Street address is required";
     if (!formData.city.trim()) newErrors.city = "City is required";
     if (!formData.zipCode.trim()) newErrors.zipCode = "ZIP code is required";
     if (!formData.stateCountry.trim())
-      newErrors.stateCountry = "State/Country is required";
+      newErrors.stateCountry = "Job description is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // const handleSubmit = () => {
-  //   if (validateForm()) {
-  //     console.log("Form submitted:", formData);
-  //     console.log("Uploaded photos:", uploadedPhotos);
-  //     alert(
-  //       `Job request submitted successfully!\nEstimated Cost: $${calculateEstimate()}\nService: ${formData.serviceType}\nUrgency: ${formData.urgency}`,
-  //     );
-  //   } else {
-  //     alert("Please fill in all required fields");
-  //   }
-  // };
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    const resolvedServiceTitle = selectedService.title || "Yard Work Request";
+    const resolvedServiceType =
+      selectedService.id || selectedService.categoryId || "yard-work";
+
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const checkoutSession = await paymentApi.createJobCheckoutSession({
+        amount: estimatedTotal,
+        description: `${resolvedServiceTitle} booking payment`,
+        cancelUrl: bookingPath,
+        serviceId: selectedService.id || "",
+        jobData: {
+          title: resolvedServiceTitle,
+          serviceType: resolvedServiceType,
+          fullName: contactDetails.fullName,
+          phone: contactDetails.phone,
+          email: contactDetails.email,
+          streetAddress: formData.streetAddress.trim(),
+          city: formData.city.trim(),
+          zipCode: formData.zipCode.trim(),
+          description: formData.stateCountry.trim(),
+          urgency: formData.urgency,
+          preferredDate: formData.preferredDate || null,
+          preferredTime: formData.preferredTime,
+          estimatedPrice: estimatedTotal,
+          photoUrls: uploadedPhotos
+            .map((photo) => photo.url)
+            .filter(Boolean),
+        },
+      });
+
+      if (!checkoutSession?.url) {
+        throw new Error("Stripe checkout URL is missing");
+      }
+
+      window.location.assign(checkoutSession.url);
+    } catch (error) {
+      setSubmitError(getApiErrorMessage(error));
+      setIsSubmitting(false);
+    }
+  };
 
   const estimatedTotal = hasSelectedService ? selectedService.price : 45;
 
@@ -132,7 +217,7 @@ function BookYardWorkFormContent() {
                     <input
                       type="text"
                       name="fullName"
-                      value={formData.fullName}
+                      value={formData.fullName ?? user?.name ?? ""}
                       onChange={handleChange}
                       className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${
                         errors.fullName ? "border-red-500" : "border-gray-300"
@@ -152,7 +237,7 @@ function BookYardWorkFormContent() {
                       type="tel"
                       name="phone"
                       placeholder="(555) 123-4567"
-                      value={formData.phone}
+                      value={formData.phone ?? user?.phone ?? ""}
                       onChange={handleChange}
                       className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${
                         errors.phone ? "border-red-500" : "border-gray-300"
@@ -172,7 +257,7 @@ function BookYardWorkFormContent() {
                       type="email"
                       name="email"
                       placeholder="email@email.com"
-                      value={formData.email}
+                      value={formData.email ?? user?.email ?? ""}
                       onChange={handleChange}
                       className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${
                         errors.email ? "border-red-500" : "border-gray-300"
@@ -516,32 +601,37 @@ function BookYardWorkFormContent() {
                   <p className="text-green-600">Same-day service available</p>
                 </div>
               </div>
-              <Link href="/book/success">
-                <button
-                  // onClick={handleSubmit}
-                  className="w-full bg-[#0a3019] text-white py-3 px-4 rounded-md font-medium hover:bg-[#0b4221] transition-colors flex items-center justify-center gap-2"
+              {submitError ? (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {submitError}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="w-full bg-[#0a3019] text-white py-3 px-4 rounded-md font-medium hover:bg-[#0b4221] transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-send-icon lucide-send"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    class="lucide lucide-send-icon lucide-send"
-                  >
-                    <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" />
-                    <path d="m21.854 2.147-10.94 10.939" />
-                  </svg>
-                  Submit Job Request
-                </button>
-              </Link>
+                  <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" />
+                  <path d="m21.854 2.147-10.94 10.939" />
+                </svg>
+                {isSubmitting ? "Redirecting to Stripe..." : "Continue to Payment"}
+              </button>
 
               <p className="text-xs text-gray-500 text-center mt-3">
-                We&apos;ll review your request and forward it to a professional.
+                You&apos;ll finish payment securely on Stripe, then return here automatically.
               </p>
             </div>
           </div>

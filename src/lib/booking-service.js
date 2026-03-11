@@ -1,14 +1,21 @@
+const buildBookServiceQuery = (service, category) => ({
+  serviceId: service?.id || "",
+  serviceTitle: service?.title || "",
+  servicePrice: String(service?.price ?? ""),
+  serviceDuration: service?.duration || "",
+  serviceDescription: service?.description || "",
+  categoryId: category?.id || "",
+  categoryLabel: category?.label || "",
+});
+
+export const buildBookServicePath = (service, category) => {
+  const query = new URLSearchParams(buildBookServiceQuery(service, category));
+  return `/book?${query.toString()}`;
+};
+
 export const buildBookServiceHref = (service, category) => ({
   pathname: "/book",
-  query: {
-    serviceId: service?.id || "",
-    serviceTitle: service?.title || "",
-    servicePrice: String(service?.price ?? ""),
-    serviceDuration: service?.duration || "",
-    serviceDescription: service?.description || "",
-    categoryId: category?.id || "",
-    categoryLabel: category?.label || "",
-  },
+  query: buildBookServiceQuery(service, category),
 });
 
 export const getSelectedServiceFromSearchParams = (searchParams) => {
