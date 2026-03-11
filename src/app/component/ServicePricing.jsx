@@ -14,6 +14,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { contentApi } from "@/lib/api/content-api";
+import { buildBookServiceHref } from "@/lib/booking-service";
 import { clonePricingCategories, formatPrice, normalizePricingCategories, PRICING_CONTENT_KEY } from "@/lib/pricing-content";
 
 const ICON_COMPONENTS = {
@@ -29,6 +30,8 @@ const ICON_COMPONENTS = {
 };
 
 const ServiceCard = ({
+  id,
+  category,
   icon,
   title,
   price,
@@ -53,7 +56,16 @@ const ServiceCard = ({
       <p className="grow text-sm text-gray-600">{description}</p>
 
       <Link
-        href="/book"
+        href={buildBookServiceHref(
+          {
+            id,
+            title,
+            price,
+            duration,
+            description,
+          },
+          category
+        )}
         className={`mt-6 inline-flex w-full items-center justify-center rounded-lg px-4 py-3 font-medium transition-colors ${
           buttonVariant === "secondary"
             ? "border-2 border-green-800 bg-white text-green-800 hover:bg-green-50"
@@ -170,7 +182,11 @@ const ServicePricing = () => {
             ) : (
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {currentCategory.services.map((service) => (
-                  <ServiceCard key={service.id} {...service} />
+                  <ServiceCard
+                    key={service.id}
+                    category={currentCategory}
+                    {...service}
+                  />
                 ))}
               </div>
             )}

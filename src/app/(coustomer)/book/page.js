@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Shield, MapPin, DollarSign, Upload, X } from "lucide-react";
+import { Suspense, useMemo, useState } from "react";
+import { Check, Upload, X } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { getSelectedServiceFromSearchParams } from "@/lib/booking-service";
+import { formatPrice } from "@/lib/pricing-content";
 
-export default function BookYardWorkForm() {
+function BookYardWorkFormContent() {
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
@@ -16,38 +20,15 @@ export default function BookYardWorkForm() {
     urgency: "flexible",
     preferredDate: "",
     preferredTime: "anytime",
-    serviceType: "plumbing",
-    jobSize: "",
   });
 
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
   const [errors, setErrors] = useState({});
-
-  const serviceTypes = [
-    { value: "plumbing", label: "Plumbing", basePrice: 45 },
-    { value: "electrical", label: "Electrical", basePrice: 60 },
-    { value: "hvac", label: "HVAC", basePrice: 75 },
-    { value: "carpentry", label: "Carpentry", basePrice: 50 },
-    { value: "landscaping", label: "Landscaping", basePrice: 40 },
-    { value: "painting", label: "Painting", basePrice: 55 },
-  ];
-
-  const jobSizes = [
-    { value: "small", label: "Small", multiplier: 1 },
-    { value: "medium", label: "Medium", multiplier: 1.5 },
-    { value: "large", label: "Large", multiplier: 2.5 },
-    { value: "extra-large", label: "Extra Large", multiplier: 4 },
-  ];
-
-  const calculateEstimate = () => {
-    const service = serviceTypes.find((s) => s.value === formData.serviceType);
-    const size = jobSizes.find((s) => s.value === formData.jobSize);
-
-    if (!service) return 45;
-    if (!size) return service.basePrice;
-
-    return Math.round(service.basePrice * size.multiplier);
-  };
+  const selectedService = useMemo(
+    () => getSelectedServiceFromSearchParams(searchParams),
+    [searchParams]
+  );
+  const hasSelectedService = Boolean(selectedService.title);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -109,7 +90,7 @@ export default function BookYardWorkForm() {
   //   }
   // };
 
-  const estimatedTotal = calculateEstimate();
+  const estimatedTotal = hasSelectedService ? selectedService.price : 45;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -120,7 +101,7 @@ export default function BookYardWorkForm() {
             Book Yard Work
           </h1>
           <p className="text-gray-600 mb-4">
-            Tell us what you need — we'll handle the rest.
+            Tell us what you need — we&apos;ll handle the rest.
           </p>
           <div className="flex justify-center gap-6 text-sm text-gray-600">
             <div className="flex items-center gap-1">
@@ -441,16 +422,26 @@ export default function BookYardWorkForm() {
 
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Service Type:</span>
-                  <span className="font-medium capitalize">
-                    {formData.serviceType}
+                  <span className="text-gray-600">Selected Service:</span>
+                  <span className="font-medium text-right">
+                    {hasSelectedService
+                      ? selectedService.title
+                      : "Choose a service from pricing"}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Job Size:</span>
-                  <span className="font-medium capitalize">
-                    {formData.jobSize
-                      ? formData.jobSize.replace("-", " ")
+                  <span className="text-gray-600">Category:</span>
+                  <span className="font-medium text-right">
+                    {hasSelectedService
+                      ? selectedService.categoryLabel || "Pricing"
+                      : "Not selected"}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Duration:</span>
+                  <span className="font-medium text-right">
+                    {hasSelectedService
+                      ? selectedService.duration || "Not specified"
                       : "Not selected"}
                   </span>
                 </div>
@@ -458,11 +449,25 @@ export default function BookYardWorkForm() {
                   <div className="flex justify-between items-center">
                     <span className="font-semibold">Estimated Total:</span>
                     <span className="text-3xl font-bold text-gray-900">
-                      ${estimatedTotal}
+                      ${formatPrice(estimatedTotal)}
                     </span>
                   </div>
                 </div>
               </div>
+
+              {hasSelectedService ? (
+                <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                    Selected From Pricing
+                  </div>
+                  <p className="mt-2 text-sm font-medium text-gray-900">
+                    {selectedService.title}
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-gray-600">
+                    {selectedService.description || "Service details will appear here."}
+                  </p>
+                </div>
+              ) : null}
 
               <div className="space-y-3 mb-6">
                 <div className="flex items-start gap-2 text-sm">
@@ -536,7 +541,7 @@ export default function BookYardWorkForm() {
               </Link>
 
               <p className="text-xs text-gray-500 text-center mt-3">
-                We'll review your request and forward it to a professional.
+                We&apos;ll review your request and forward it to a professional.
               </p>
             </div>
           </div>
@@ -622,5 +627,13 @@ export default function BookYardWorkForm() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BookYardWorkForm() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 py-8 px-4" />}>
+      <BookYardWorkFormContent />
+    </Suspense>
   );
 }
