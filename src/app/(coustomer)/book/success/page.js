@@ -20,6 +20,7 @@ import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 import { getApiErrorMessage } from "@/lib/api/http";
 import { paymentApi } from "@/lib/api/payment-api";
 import { formatPrice } from "@/lib/pricing-content";
+import { formatDate } from "@/lib/time";
 import { useAuthStore } from "@/stores/use-auth-store";
 
 const POLL_INTERVAL_MS = 2500;
@@ -30,15 +31,7 @@ const formatPreferredDate = (value) => {
     return "Flexible";
   }
 
-  const parsedDate = new Date(value);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-  }).format(parsedDate);
+  return formatDate(value) || value;
 };
 
 function BookingSuccessContent() {

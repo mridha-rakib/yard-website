@@ -1,297 +1,553 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { Search, ChevronDown, DollarSign, Clock, Calendar, CreditCard, Eye } from 'lucide-react';
+import Link from "next/link";
+import { useDeferredValue, useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  AlertCircle,
+  Calendar,
+  ChevronDown,
+  Clock,
+  CreditCard,
+  DollarSign,
+  Eye,
+  LoaderCircle,
+  Search,
+} from "lucide-react";
+import { paymentApi } from "@/lib/api/payment-api";
+import { getApiErrorMessage } from "@/lib/api/http";
+import { buildLoginPath } from "@/lib/auth/auth-redirect";
+import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { formatPrice } from "@/lib/pricing-content";
+import { formatDate } from "@/lib/time";
+import { useAuthStore } from "@/stores/use-auth-store";
 
-const page =() => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState('All Dates');
-  const [statusFilter, setStatusFilter] = useState('All Status');
-  const [methodFilter, setMethodFilter] = useState('Payment Method');
+const PAGE_LIMIT = 100;
 
-  const payments = [
-    {
-      id: 1,
-      jobTitle: 'Lawn Mowing & Edging',
-      jobId: '#JOB001',
-      worker: 'Mike Johnson',
-      workerAvatar: 'MJ',
-      date: 'Dec 6, 2024',
-      method: 'Credit Card',
-      amount: '$125.00',
-      status: 'Completed',
-      statusColor: 'bg-green-100 text-green-700'
-    },
-    {
-      id: 2,
-      jobTitle: 'Garden Cleanup',
-      jobId: '#JOB002',
-      worker: 'David Lee',
-      workerAvatar: 'DL',
-      date: 'Dec 5, 2024',
-      method: 'PayPal',
-      amount: '$185.00',
-      status: 'Pending',
-      statusColor: 'bg-yellow-100 text-yellow-700'
-    },
-    {
-      id: 3,
-      jobTitle: 'Tree Trimming',
-      jobId: '#JOB003',
-      worker: 'Carlos Rodriguez',
-      workerAvatar: 'CR',
-      date: 'Nov 28, 2024',
-      method: 'Credit Card',
-      amount: '$280.00',
-      status: 'Completed',
-      statusColor: 'bg-green-100 text-green-700'
+const dateFilters = [
+  { value: "all", label: "All Dates" },
+  { value: "last_7_days", label: "Last 7 Days" },
+  { value: "last_30_days", label: "Last 30 Days" },
+  { value: "last_3_months", label: "Last 3 Months" },
+  { value: "last_year", label: "Last Year" },
+];
+
+const statusFilters = [
+  { value: "all", label: "All Status" },
+  { value: "completed", label: "Completed" },
+  { value: "pending", label: "Pending" },
+  { value: "failed", label: "Failed" },
+  { value: "refunded", label: "Refunded" },
+];
+
+const methodFilters = [
+  { value: "all", label: "Payment Method" },
+  { value: "card", label: "Credit Card" },
+  { value: "paypal", label: "PayPal" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "cash", label: "Cash" },
+];
+
+const paymentStatusConfig = {
+  paid: {
+    label: "Completed",
+    statusColor: "bg-green-100 text-green-700",
+  },
+  pending: {
+    label: "Pending",
+    statusColor: "bg-yellow-100 text-yellow-700",
+  },
+  failed: {
+    label: "Failed",
+    statusColor: "bg-red-100 text-red-700",
+  },
+  refunded: {
+    label: "Refunded",
+    statusColor: "bg-blue-100 text-blue-700",
+  },
+  cancelled: {
+    label: "Cancelled",
+    statusColor: "bg-gray-100 text-gray-700",
+  },
+};
+
+const createEmptySummary = () => ({
+  totalPaid: 0,
+  pendingPayments: 0,
+  lastPaymentAmount: 0,
+  lastPaymentDate: "",
+});
+
+const formatCurrency = (value) => `$${formatPrice(value || 0)}`;
+
+const formatPaymentDate = (value) =>
+  formatDate(value, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }) || "N/A";
+
+const formatCardDate = (value) =>
+  formatDate(value, {
+    month: "short",
+    day: "numeric",
+  }) || "N/A";
+
+const getMethodLabel = (value = "") => {
+  const labels = {
+    card: "Credit Card",
+    cash: "Cash",
+    paypal: "PayPal",
+    bank_transfer: "Bank Transfer",
+    unknown: "Unknown",
+  };
+
+  return labels[value] || "Unknown";
+};
+
+const getWorkerInitials = (name = "") =>
+  String(name)
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "YH";
+
+const getJobIdLabel = (payment) => {
+  const sourceId = payment?.job?._id || payment?._id || "";
+  return sourceId ? `#${String(sourceId).slice(-6).toUpperCase()}` : "#------";
+};
+
+const getPaymentHeadline = (payment) =>
+  payment?.job?.title || payment?.description || "Yard Service";
+
+export default function PaymentHistoryPage() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isReady = useAuthStore((state) => state.isReady);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [methodFilter, setMethodFilter] = useState("all");
+  const [payments, setPayments] = useState([]);
+  const [summary, setSummary] = useState(createEmptySummary());
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
     }
-  ];
+
+    if (!isAuthenticated) {
+      router.replace(buildLoginPath(pathname));
+      return;
+    }
+
+    if (user?.role && user.role !== "customer") {
+      router.replace(getDefaultPathForUser(user));
+    }
+  }, [isAuthenticated, isReady, pathname, router, user]);
+
+  useEffect(() => {
+    if (!isReady || !isAuthenticated || user?.role !== "customer") {
+      return;
+    }
+
+    let isActive = true;
+
+    const loadPayments = async () => {
+      setIsLoading(true);
+
+      try {
+        const params = { limit: PAGE_LIMIT };
+
+        if (deferredSearchTerm.trim()) {
+          params.search = deferredSearchTerm.trim();
+        }
+
+        if (dateFilter !== "all") {
+          params.dateRange = dateFilter;
+        }
+
+        if (statusFilter !== "all") {
+          params.status = statusFilter;
+        }
+
+        if (methodFilter !== "all") {
+          params.paymentMethod = methodFilter;
+        }
+
+        const result = await paymentApi.listPayments(params);
+
+        if (!isActive) {
+          return;
+        }
+
+        setPayments(result.items || []);
+        setSummary(result.summary || createEmptySummary());
+        setPageError("");
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setPageError(getApiErrorMessage(error));
+        setPayments([]);
+        setSummary(createEmptySummary());
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadPayments();
+
+    return () => {
+      isActive = false;
+    };
+  }, [
+    dateFilter,
+    deferredSearchTerm,
+    isAuthenticated,
+    isReady,
+    methodFilter,
+    reloadVersion,
+    statusFilter,
+    user,
+  ]);
+
+  if (!isReady || !isAuthenticated || user?.role !== "customer") {
+    return <div className="min-h-screen bg-gray-50" />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 max-w-7xl">
-        {/* Header */}
+      <div className="container mx-auto max-w-7xl px-4">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Payment History</h1>
-          <p className="text-gray-600">Track all your yard work service payments and transaction details</p>
+          <h1 className="mb-2 text-3xl font-bold text-gray-900">Payment History</h1>
+          <p className="text-gray-600">
+            Track all your yard work service payments and transaction details
+          </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+        {pageError ? (
+          <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <p>{pageError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReloadVersion((currentValue) => currentValue + 1)}
+              className="inline-flex items-center justify-center rounded-full border border-red-200 bg-white px-4 py-2 font-semibold text-red-700 transition-colors hover:bg-red-100"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : null}
+
+        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl bg-white p-6 shadow-lg transition-shadow duration-300 hover:shadow-xl">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-2">Total Paid</p>
-                <p className="text-3xl font-bold text-gray-900">$2,450</p>
+                <p className="mb-2 text-sm text-gray-600">Total Paid</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {formatCurrency(summary.totalPaid)}
+                </p>
               </div>
-              <div className="bg-green-100 rounded-full p-3">
-                <DollarSign className="w-6 h-6 text-green-700" />
+              <div className="rounded-full bg-green-100 p-3">
+                <DollarSign className="h-6 w-6 text-green-700" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+          <div className="rounded-2xl bg-white p-6 shadow-lg transition-shadow duration-300 hover:shadow-xl">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-2">Pending Payments</p>
-                <p className="text-3xl font-bold text-gray-900">$185</p>
+                <p className="mb-2 text-sm text-gray-600">Pending Payments</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {formatCurrency(summary.pendingPayments)}
+                </p>
               </div>
-              <div className="bg-yellow-100 rounded-full p-3">
-                <Clock className="w-6 h-6 text-yellow-700" />
+              <div className="rounded-full bg-yellow-100 p-3">
+                <Clock className="h-6 w-6 text-yellow-700" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+          <div className="rounded-2xl bg-white p-6 shadow-lg transition-shadow duration-300 hover:shadow-xl">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-2">Last Payment</p>
-                <p className="text-3xl font-bold text-gray-900">$125</p>
+                <p className="mb-2 text-sm text-gray-600">Last Payment</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {formatCurrency(summary.lastPaymentAmount)}
+                </p>
               </div>
-              <div className="bg-blue-100 rounded-full p-3">
-                <CreditCard className="w-6 h-6 text-blue-700" />
+              <div className="rounded-full bg-blue-100 p-3">
+                <CreditCard className="h-6 w-6 text-blue-700" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+          <div className="rounded-2xl bg-white p-6 shadow-lg transition-shadow duration-300 hover:shadow-xl">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-2">Last Payment Date</p>
-                <p className="text-3xl font-bold text-gray-900">Dec 8</p>
+                <p className="mb-2 text-sm text-gray-600">Last Payment Date</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {formatCardDate(summary.lastPaymentDate)}
+                </p>
               </div>
-              <div className="bg-purple-100 rounded-full p-3">
-                <Calendar className="w-6 h-6 text-purple-700" />
+              <div className="rounded-full bg-purple-100 p-3">
+                <Calendar className="h-6 w-6 text-purple-700" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Filters Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Search */}
+        <div className="mb-6 rounded-2xl bg-white p-6 shadow-lg">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div className="md:col-span-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search by job ID or worker name..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 transition-all focus:border-transparent focus:ring-2 focus:ring-green-500"
                 />
               </div>
             </div>
 
-            {/* Date Filter */}
             <div className="relative">
               <select
                 value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg appearance-none bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all cursor-pointer"
+                onChange={(event) => setDateFilter(event.target.value)}
+                className="w-full cursor-pointer appearance-none rounded-lg border border-gray-300 bg-white px-4 py-3 transition-all focus:border-transparent focus:ring-2 focus:ring-green-500"
               >
-                <option>All Dates</option>
-                <option>Last 7 Days</option>
-                <option>Last 30 Days</option>
-                <option>Last 3 Months</option>
-                <option>Last Year</option>
+                {dateFilters.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             </div>
 
-            {/* Status Filter */}
             <div className="relative">
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg appearance-none bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all cursor-pointer"
+                onChange={(event) => setStatusFilter(event.target.value)}
+                className="w-full cursor-pointer appearance-none rounded-lg border border-gray-300 bg-white px-4 py-3 transition-all focus:border-transparent focus:ring-2 focus:ring-green-500"
               >
-                <option>All Status</option>
-                <option>Completed</option>
-                <option>Pending</option>
-                <option>Failed</option>
-                <option>Refunded</option>
+                {statusFilters.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             </div>
 
-            {/* Payment Method Filter */}
             <div className="relative">
               <select
                 value={methodFilter}
-                onChange={(e) => setMethodFilter(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg appearance-none bg-white focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all cursor-pointer"
+                onChange={(event) => setMethodFilter(event.target.value)}
+                className="w-full cursor-pointer appearance-none rounded-lg border border-gray-300 bg-white px-4 py-3 transition-all focus:border-transparent focus:ring-2 focus:ring-green-500"
               >
-                <option>Payment Method</option>
-                <option>Credit Card</option>
-                <option>PayPal</option>
-                <option>Bank Transfer</option>
-                <option>Cash</option>
+                {methodFilters.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             </div>
           </div>
         </div>
 
-        {/* Payment History Table */}
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-lg">
+          <div className="border-b border-gray-200 p-6">
             <h2 className="text-xl font-bold text-gray-900">Payment History</h2>
           </div>
 
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Job Details
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Worker
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Payment Method
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {payments.map((payment) => (
-                  <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="font-semibold text-gray-900">{payment.jobTitle}</div>
-                        <div className="text-sm text-gray-500">{payment.jobId}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
-                          {payment.workerAvatar}
-                        </div>
-                        <span className="font-medium text-gray-900">{payment.worker}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-700">{payment.date}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2 text-gray-700">
-                        <CreditCard className="w-4 h-4" />
-                        <span>{payment.method}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-gray-900">{payment.amount}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${payment.statusColor}`}>
-                        {payment.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button className="text-gray-600 hover:text-green-700 transition-colors">
-                        <Eye className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {isLoading ? (
+            <div className="flex min-h-[280px] items-center justify-center px-6 py-10 text-sm text-gray-600">
+              <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
+              Loading payment history...
+            </div>
+          ) : payments.length ? (
+            <>
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full">
+                  <thead className="border-b border-gray-200 bg-gray-50">
+                    <tr>
+                      {[
+                        "Job Details",
+                        "Worker",
+                        "Date",
+                        "Payment Method",
+                        "Amount",
+                        "Status",
+                        "Actions",
+                      ].map((heading) => (
+                        <th
+                          key={heading}
+                          className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600"
+                        >
+                          {heading}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {payments.map((payment) => {
+                      const status =
+                        paymentStatusConfig[payment.status] || paymentStatusConfig.pending;
+                      const viewHref = payment?.job?._id
+                        ? `/booking-details?jobId=${payment.job._id}`
+                        : "";
 
-          {/* Mobile Card View */}
-          <div className="md:hidden divide-y divide-gray-200">
-            {payments.map((payment) => (
-              <div key={payment.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">{payment.jobTitle}</h3>
-                    <p className="text-sm text-gray-500">{payment.jobId}</p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${payment.statusColor}`}>
-                    {payment.status}
-                  </span>
-                </div>
-                
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
-                    {payment.workerAvatar}
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{payment.worker}</p>
-                    <p className="text-sm text-gray-500">{payment.date}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
-                    <CreditCard className="w-4 h-4" />
-                    <span>{payment.method}</span>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <span className="font-semibold text-gray-900">{payment.amount}</span>
-                    <button className="text-gray-600 hover:text-green-700 transition-colors">
-                      <Eye className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
+                      return (
+                        <tr key={payment._id} className="transition-colors hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div>
+                              <div className="font-semibold text-gray-900">
+                                {getPaymentHeadline(payment)}
+                              </div>
+                              <div className="text-sm text-gray-500">{getJobIdLabel(payment)}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center space-x-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-semibold text-white">
+                                {getWorkerInitials(payment?.worker?.name)}
+                              </div>
+                              <span className="font-medium text-gray-900">
+                                {payment?.worker?.name || "Unassigned"}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {formatPaymentDate(payment?.paidAt || payment?.createdAt)}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center space-x-2 text-gray-700">
+                              <CreditCard className="h-4 w-4" />
+                              <span>{getMethodLabel(payment?.paymentMethod)}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 font-semibold text-gray-900">
+                            {formatCurrency(payment?.amount)}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${status.statusColor}`}>
+                              {status.label}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {viewHref ? (
+                              <Link
+                                href={viewHref}
+                                className="text-gray-600 transition-colors hover:text-green-700"
+                                aria-label="View payment booking"
+                              >
+                                <Eye className="h-5 w-5" />
+                              </Link>
+                            ) : (
+                              <span className="inline-flex text-gray-300">
+                                <Eye className="h-5 w-5" />
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            ))}
-          </div>
+
+              <div className="divide-y divide-gray-200 md:hidden">
+                {payments.map((payment) => {
+                  const status =
+                    paymentStatusConfig[payment.status] || paymentStatusConfig.pending;
+                  const viewHref = payment?.job?._id
+                    ? `/booking-details?jobId=${payment.job._id}`
+                    : "";
+
+                  return (
+                    <div key={payment._id} className="p-6 transition-colors hover:bg-gray-50">
+                      <div className="mb-4 flex items-start justify-between">
+                        <div>
+                          <h3 className="mb-1 font-semibold text-gray-900">
+                            {getPaymentHeadline(payment)}
+                          </h3>
+                          <p className="text-sm text-gray-500">{getJobIdLabel(payment)}</p>
+                        </div>
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${status.statusColor}`}>
+                          {status.label}
+                        </span>
+                      </div>
+
+                      <div className="mb-4 flex items-center space-x-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-semibold text-white">
+                          {getWorkerInitials(payment?.worker?.name)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {payment?.worker?.name || "Unassigned"}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {formatPaymentDate(payment?.paidAt || payment?.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+                        <div className="flex items-center space-x-2 text-sm text-gray-600">
+                          <CreditCard className="h-4 w-4" />
+                          <span>{getMethodLabel(payment?.paymentMethod)}</span>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <span className="font-semibold text-gray-900">
+                            {formatCurrency(payment?.amount)}
+                          </span>
+                          {viewHref ? (
+                            <Link
+                              href={viewHref}
+                              className="text-gray-600 transition-colors hover:text-green-700"
+                              aria-label="View payment booking"
+                            >
+                              <Eye className="h-5 w-5" />
+                            </Link>
+                          ) : (
+                            <span className="inline-flex text-gray-300">
+                              <Eye className="h-5 w-5" />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="px-6 py-16 text-center">
+              <h3 className="text-xl font-semibold text-gray-900">Payment History</h3>
+              <p className="mt-3 text-sm text-gray-600">
+                No payments match your current filters yet.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-export default page;

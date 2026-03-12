@@ -18,6 +18,15 @@ import { usersApi } from "@/lib/api/users-api";
 import { getApiErrorMessage } from "@/lib/api/http";
 import { buildLoginPath } from "@/lib/auth/auth-redirect";
 import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import {
+  TIME_HOURS,
+  TIME_MINUTES,
+  TIME_PERIODS,
+  buildTimeValue,
+  createEmptyTimeParts,
+  formatTime,
+  getTimeFieldParts,
+} from "@/lib/time";
 import { useAuthStore } from "@/stores/use-auth-store";
 
 const weekdays = [
@@ -56,8 +65,8 @@ const createEmptyProfileForm = () => ({
   skillsText: "",
   availabilityLabel: "",
   availableDays: [],
-  startTime: "",
-  endTime: "",
+  startTime: createEmptyTimeParts(),
+  endTime: createEmptyTimeParts(),
 });
 
 const createEmptyPasswordForm = () => ({
@@ -88,8 +97,8 @@ const mapProfileToForm = (profile) => ({
   skillsText: Array.isArray(profile?.skills) ? profile.skills.join(", ") : "",
   availabilityLabel: profile?.availability?.label || "",
   availableDays: Array.isArray(profile?.availability?.days) ? profile.availability.days : [],
-  startTime: profile?.availability?.startTime || "",
-  endTime: profile?.availability?.endTime || "",
+  startTime: getTimeFieldParts(profile?.availability?.startTime),
+  endTime: getTimeFieldParts(profile?.availability?.endTime),
 });
 
 const buildProfilePayload = (formData, expectedRole) => {
@@ -116,14 +125,70 @@ const buildProfilePayload = (formData, expectedRole) => {
       .filter(Boolean);
     payload.availabilityLabel = formData.availabilityLabel.trim();
     payload.availableDays = formData.availableDays;
-    payload.startTime = formData.startTime;
-    payload.endTime = formData.endTime;
+    payload.startTime = buildTimeValue(formData.startTime);
+    payload.endTime = buildTimeValue(formData.endTime);
   }
 
   return payload;
 };
 
 const isValidEmail = (value) => /\S+@\S+\.\S+/.test(value);
+const isTimeFieldEmpty = (value) => !value.hour && !value.minute && !value.meridiem;
+const isTimeFieldComplete = (value) => Boolean(value.hour && value.minute !== "" && value.meridiem);
+
+function TimeSelectField({ label, value, onChange }) {
+  const timePreview = formatTime(buildTimeValue(value));
+
+  return (
+    <div className="text-sm font-medium text-[#334155]">
+      <span>{label}</span>
+      <div className="mt-2 grid grid-cols-[1fr_1fr_0.9fr] gap-2">
+        <select
+          value={value.hour}
+          onChange={(event) => onChange("hour", event.target.value)}
+          aria-label={`${label} hour`}
+          className="rounded-2xl border border-[#d5ddd7] bg-white px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
+        >
+          <option value="">Hour</option>
+          {TIME_HOURS.map((hourValue) => (
+            <option key={hourValue} value={hourValue}>
+              {hourValue}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={value.minute}
+          onChange={(event) => onChange("minute", event.target.value)}
+          aria-label={`${label} minute`}
+          className="rounded-2xl border border-[#d5ddd7] bg-white px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
+        >
+          <option value="">Minute</option>
+          {TIME_MINUTES.map((minuteValue) => (
+            <option key={minuteValue} value={minuteValue}>
+              {minuteValue}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={value.meridiem}
+          onChange={(event) => onChange("meridiem", event.target.value)}
+          aria-label={`${label} period`}
+          className="rounded-2xl border border-[#d5ddd7] bg-white px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
+        >
+          <option value="">AM/PM</option>
+          {TIME_PERIODS.map((periodValue) => (
+            <option key={periodValue} value={periodValue}>
+              {periodValue}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="mt-2 text-xs text-[#64748b]">{timePreview || "Leave blank if not set."}</p>
+    </div>
+  );
+}
 
 export default function AccountProfilePage({ expectedRole }) {
   const pathname = usePathname();
@@ -219,6 +284,18 @@ export default function AccountProfilePage({ expectedRole }) {
     setPasswordMessage("");
   };
 
+  const handleTimeFieldChange = (fieldName, partName, partValue) => {
+    setProfileForm((currentValue) => ({
+      ...currentValue,
+      [fieldName]: {
+        ...currentValue[fieldName],
+        [partName]: partValue,
+      },
+    }));
+    setProfileError("");
+    setProfileMessage("");
+  };
+
   const toggleAvailableDay = (dayValue) => {
     setProfileForm((currentValue) => ({
       ...currentValue,
@@ -245,6 +322,16 @@ export default function AccountProfilePage({ expectedRole }) {
 
     if (!profileForm.phone.trim()) {
       setProfileError("Phone number is required.");
+      return;
+    }
+
+    if (!isTimeFieldEmpty(profileForm.startTime) && !isTimeFieldComplete(profileForm.startTime)) {
+      setProfileError("Complete the start time or leave it blank.");
+      return;
+    }
+
+    if (!isTimeFieldEmpty(profileForm.endTime) && !isTimeFieldComplete(profileForm.endTime)) {
+      setProfileError("Complete the end time or leave it blank.");
       return;
     }
 
@@ -586,27 +673,21 @@ export default function AccountProfilePage({ expectedRole }) {
                       </div>
 
                       <div className="grid gap-4 md:grid-cols-2">
-                        <label className="text-sm font-medium text-[#334155]">
-                          Start time
-                          <input
-                            type="time"
-                            name="startTime"
-                            value={profileForm.startTime}
-                            onChange={handleProfileFieldChange}
-                            className="mt-2 w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
-                          />
-                        </label>
+                        <TimeSelectField
+                          label="Start time"
+                          value={profileForm.startTime}
+                          onChange={(partName, partValue) =>
+                            handleTimeFieldChange("startTime", partName, partValue)
+                          }
+                        />
 
-                        <label className="text-sm font-medium text-[#334155]">
-                          End time
-                          <input
-                            type="time"
-                            name="endTime"
-                            value={profileForm.endTime}
-                            onChange={handleProfileFieldChange}
-                            className="mt-2 w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
-                          />
-                        </label>
+                        <TimeSelectField
+                          label="End time"
+                          value={profileForm.endTime}
+                          onChange={(partName, partValue) =>
+                            handleTimeFieldChange("endTime", partName, partValue)
+                          }
+                        />
                       </div>
 
                       <label className="text-sm font-medium text-[#334155]">

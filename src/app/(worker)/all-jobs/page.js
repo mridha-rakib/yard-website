@@ -20,6 +20,7 @@ import { getApiErrorMessage } from "@/lib/api/http";
 import { buildLoginPath } from "@/lib/auth/auth-redirect";
 import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 import { formatPrice } from "@/lib/pricing-content";
+import { formatDate } from "@/lib/time";
 import { useAuthStore } from "@/stores/use-auth-store";
 
 const PAGE_LIMIT = 100;
@@ -101,21 +102,7 @@ const formatLocation = (job) =>
   [job?.city, job?.state, job?.zipCode].filter(Boolean).join(", ") || "Location pending";
 
 const formatPreferredDate = (value) => {
-  if (!value) {
-    return "";
-  }
-
-  const parsedDate = new Date(value);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(parsedDate);
+  return formatDate(value);
 };
 
 const formatSchedule = (job) => {

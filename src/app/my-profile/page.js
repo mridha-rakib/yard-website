@@ -1,5 +1,5 @@
-import AccountProfilePage from "@/components/profile/AccountProfilePage";
+import CustomerProfilePage from "@/components/profile/CustomerProfilePage";
 
-export default function CustomerProfilePage() {
-  return <AccountProfilePage expectedRole="customer" />;
+export default function MyProfilePage() {
+  return <CustomerProfilePage />;
 }

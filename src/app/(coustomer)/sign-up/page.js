@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, Phone, User, UserPlus } from "lucide-react";
@@ -48,7 +48,7 @@ const validateSignUpForm = (formData) => {
   return nextErrors;
 };
 
-const SignUpPage = () => {
+const SignUpPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const registerCustomer = useAuthStore((state) => state.registerCustomer);
@@ -329,4 +329,10 @@ const SignUpPage = () => {
   );
 };
 
-export default SignUpPage;
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f6f8f6]" />}>
+      <SignUpPageContent />
+    </Suspense>
+  );
+}

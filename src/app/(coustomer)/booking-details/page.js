@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -25,6 +25,7 @@ import {
 } from "@/lib/auth/auth-redirect";
 import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 import { formatPrice } from "@/lib/pricing-content";
+import { formatDate, formatDateTime } from "@/lib/time";
 import { useAuthStore } from "@/stores/use-auth-store";
 
 const statusConfig = {
@@ -60,50 +61,20 @@ const timeLabels = {
   afternoon: "Afternoon",
   evening: "Evening",
 };
+const fullDateFormat = {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+};
 
 const formatCurrency = (value) => `$${formatPrice(value || 0)}`;
-
-const formatDate = (value) => {
-  if (!value) {
-    return "";
-  }
-
-  const parsedDate = new Date(value);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }).format(parsedDate);
-};
-
-const formatDateTime = (value) => {
-  if (!value) {
-    return "";
-  }
-
-  const parsedDate = new Date(value);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(parsedDate);
-};
 
 const formatLocation = (job) =>
   [job?.streetAddress, job?.city, job?.state, job?.zipCode].filter(Boolean).join(", ") ||
   "Address pending";
 
 const formatSchedule = (job) => {
-  const dateLabel = formatDate(job?.preferredDate);
+  const dateLabel = formatDate(job?.preferredDate, fullDateFormat);
   const timeLabel = timeLabels[job?.preferredTime] || job?.preferredTime || "";
 
   if (dateLabel && timeLabel) {
@@ -177,7 +148,7 @@ function TimelineStep({ item }) {
   );
 }
 
-export default function BookingDetailsPage() {
+function BookingDetailsPageContent() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -332,7 +303,7 @@ export default function BookingDetailsPage() {
                       <div>
                         <p className="text-sm font-semibold text-[#111827]">Submitted</p>
                         <p className="mt-1 text-sm text-[#52606d]">
-                          {formatDate(job.createdAt) || "Recently submitted"}
+                          {formatDate(job.createdAt, fullDateFormat) || "Recently submitted"}
                         </p>
                       </div>
                     </div>
@@ -481,5 +452,13 @@ export default function BookingDetailsPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+export default function BookingDetailsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f6f8f6]" />}>
+      <BookingDetailsPageContent />
+    </Suspense>
   );
 }

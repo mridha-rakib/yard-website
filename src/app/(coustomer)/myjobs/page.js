@@ -17,9 +17,15 @@ import { getApiErrorMessage } from "@/lib/api/http";
 import { buildLoginPath } from "@/lib/auth/auth-redirect";
 import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 import { formatPrice } from "@/lib/pricing-content";
+import { formatDate } from "@/lib/time";
 import { useAuthStore } from "@/stores/use-auth-store";
 
 const PAGE_LIMIT = 100;
+const fullDateFormat = {
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+};
 
 const statusConfig = {
   new: {
@@ -55,23 +61,8 @@ const formatLocation = (job) =>
     .filter(Boolean)
     .join(", ") || "Address pending";
 
-const formatSubmittedDate = (value) => {
-  if (!value) {
-    return "Recently submitted";
-  }
-
-  const parsedDate = new Date(value);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "Recently submitted";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }).format(parsedDate);
-};
+const formatSubmittedDate = (value) =>
+  formatDate(value, fullDateFormat) || "Recently submitted";
 
 const getTotalAmount = (job) => job?.payment?.amount || job?.estimatedPrice || 0;
 

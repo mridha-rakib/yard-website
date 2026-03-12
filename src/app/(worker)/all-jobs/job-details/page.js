@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -25,6 +25,7 @@ import {
 } from "@/lib/auth/auth-redirect";
 import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 import { formatPrice } from "@/lib/pricing-content";
+import { formatDate, formatDateTime } from "@/lib/time";
 import { useAuthStore } from "@/stores/use-auth-store";
 
 const statusLabels = {
@@ -42,41 +43,6 @@ const timeLabels = {
 };
 
 const formatCurrency = (value) => `$${formatPrice(value || 0)}`;
-
-const formatDate = (value) => {
-  if (!value) {
-    return "";
-  }
-
-  const parsedDate = new Date(value);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(parsedDate);
-};
-
-const formatDateTime = (value) => {
-  if (!value) {
-    return "";
-  }
-
-  const parsedDate = new Date(value);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(parsedDate);
-};
 
 const formatLocation = (job) =>
   [job?.streetAddress, job?.city, job?.state, job?.zipCode].filter(Boolean).join(", ") ||
@@ -129,7 +95,7 @@ const buildTimeline = (job) => [
   },
 ];
 
-export default function WorkerJobDetailsPage() {
+function WorkerJobDetailsPageContent() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -658,5 +624,13 @@ export default function WorkerJobDetailsPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+export default function WorkerJobDetailsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f6f8f6]" />}>
+      <WorkerJobDetailsPageContent />
+    </Suspense>
   );
 }
