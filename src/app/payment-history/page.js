@@ -35,6 +35,7 @@ const dateFilters = [
 const statusFilters = [
   { value: "all", label: "All Status" },
   { value: "completed", label: "Completed" },
+  { value: "authorized", label: "Authorized" },
   { value: "pending", label: "Pending" },
   { value: "failed", label: "Failed" },
   { value: "refunded", label: "Refunded" },
@@ -52,6 +53,10 @@ const paymentStatusConfig = {
   paid: {
     label: "Completed",
     statusColor: "bg-green-100 text-green-700",
+  },
+  authorized: {
+    label: "Authorized",
+    statusColor: "bg-blue-100 text-blue-700",
   },
   pending: {
     label: "Pending",
@@ -79,6 +84,7 @@ const createEmptySummary = () => ({
 });
 
 const formatCurrency = (value) => `$${formatPrice(value || 0)}`;
+const getPaymentDate = (payment) => payment?.paidAt || payment?.authorizedAt || payment?.createdAt;
 
 const formatPaymentDate = (value) =>
   formatDate(value, {
@@ -270,7 +276,7 @@ export default function PaymentHistoryPage() {
           <div className="rounded-2xl bg-white p-6 shadow-lg transition-shadow duration-300 hover:shadow-xl">
             <div className="flex items-start justify-between">
               <div>
-                <p className="mb-2 text-sm text-gray-600">Pending Payments</p>
+                <p className="mb-2 text-sm text-gray-600">Authorized / Pending</p>
                 <p className="text-3xl font-bold text-gray-900">
                   {formatCurrency(summary.pendingPayments)}
                 </p>
@@ -435,7 +441,7 @@ export default function PaymentHistoryPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-gray-700">
-                            {formatPaymentDate(payment?.paidAt || payment?.createdAt)}
+                            {formatPaymentDate(getPaymentDate(payment))}
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center space-x-2 text-gray-700">
@@ -504,7 +510,7 @@ export default function PaymentHistoryPage() {
                             {payment?.worker?.name || "Unassigned"}
                           </p>
                           <p className="text-sm text-gray-500">
-                            {formatPaymentDate(payment?.paidAt || payment?.createdAt)}
+                            {formatPaymentDate(getPaymentDate(payment))}
                           </p>
                         </div>
                       </div>

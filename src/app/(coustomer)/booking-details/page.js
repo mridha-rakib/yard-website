@@ -61,6 +61,7 @@ const timeLabels = {
   afternoon: "Afternoon",
   evening: "Evening",
 };
+const securedPaymentStatuses = ["authorized", "paid"];
 const fullDateFormat = {
   month: "long",
   day: "numeric",
@@ -68,6 +69,31 @@ const fullDateFormat = {
 };
 
 const formatCurrency = (value) => `$${formatPrice(value || 0)}`;
+const formatPaymentStatus = (value = "") =>
+  String(value || "pending")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+const getPaymentSummaryCopy = (paymentStatus = "") => {
+  if (paymentStatus === "paid") {
+    return "Payment was captured through Stripe after the job was completed.";
+  }
+
+  if (paymentStatus === "authorized") {
+    return "Your card is authorized and will be captured after the worker completes the job.";
+  }
+
+  if (paymentStatus === "failed") {
+    return "We could not capture the payment automatically. Support will need to review it.";
+  }
+
+  if (paymentStatus === "cancelled") {
+    return "This payment session was cancelled before the card could be authorized.";
+  }
+
+  return "We are still waiting for Stripe to authorize the payment method for this booking.";
+};
 
 const formatLocation = (job) =>
   [job?.streetAddress, job?.city, job?.state, job?.zipCode].filter(Boolean).join(", ") ||
@@ -94,11 +120,15 @@ const formatSchedule = (job) => {
 
 const buildTimeline = (job) => [
   {
-    label: "Payment confirmed",
-    complete: job?.payment?.status === "paid",
+    label: "Payment secured",
+    complete: securedPaymentStatuses.includes(job?.payment?.status),
     detail:
-      formatDateTime(job?.payment?.paidAt) ||
-      (job?.payment?.status === "paid" ? "Stripe payment verified" : "Waiting for payment"),
+      job?.payment?.status === "paid"
+        ? formatDateTime(job?.payment?.paidAt) || "Payment captured through Stripe"
+        : job?.payment?.status === "authorized"
+          ? formatDateTime(job?.payment?.authorizedAt) ||
+            "Card authorized for capture after completion"
+          : "Waiting for payment authorization",
   },
   {
     label: "Request submitted",
@@ -288,7 +318,7 @@ function BookingDetailsPageContent() {
 
                   <div className="rounded-2xl border border-[#e2e8e3] bg-[#fbfdfb] px-5 py-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7280]">
-                      Total Paid
+                      Service Amount
                     </p>
                     <p className="mt-2 text-3xl font-bold text-[#0f172a]">
                       {formatCurrency(amount)}
@@ -412,13 +442,13 @@ function BookingDetailsPageContent() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-[#52606d]">Status</span>
                     <span className="text-sm font-semibold text-[#111827]">
-                      {job.payment?.status || job.paymentStatus || "pending"}
+                      {formatPaymentStatus(job.payment?.status || job.paymentStatus || "pending")}
                     </span>
                   </div>
                   <div className="flex items-start gap-3 rounded-2xl border border-[#e2e8e3] bg-[#fbfdfb] px-4 py-4">
                     <CreditCard className="mt-0.5 h-5 w-5 text-[#64748b]" />
                     <p className="text-sm text-[#52606d]">
-                      Payment is processed through Stripe and attached to this job once verified.
+                      {getPaymentSummaryCopy(job.payment?.status || job.paymentStatus || "pending")}
                     </p>
                   </div>
                 </div>

@@ -41,8 +41,50 @@ const timeLabels = {
   afternoon: "Afternoon",
   evening: "Evening",
 };
+const securedPaymentStatuses = ["authorized", "paid"];
 
 const formatCurrency = (value) => `$${formatPrice(value || 0)}`;
+const getPaymentStatusCopy = (paymentStatus = "") => {
+  if (paymentStatus === "paid") {
+    return "Captured through Stripe";
+  }
+
+  if (paymentStatus === "authorized") {
+    return "Authorized and ready to capture after completion";
+  }
+
+  if (paymentStatus === "failed") {
+    return "Capture failed and needs review";
+  }
+
+  if (paymentStatus === "cancelled") {
+    return "Authorization was cancelled";
+  }
+
+  return "Awaiting payment authorization";
+};
+const getCompletionFeedback = (result) => {
+  const captureStatus = result?.paymentCapture?.status || "";
+
+  if (["paid", "already_paid"].includes(captureStatus)) {
+    return {
+      type: "success",
+      message: "Job completed and customer payment captured.",
+    };
+  }
+
+  if (["failed", "payment_not_found"].includes(captureStatus)) {
+    return {
+      type: "warning",
+      message: "Job completed, but customer payment needs manual review.",
+    };
+  }
+
+  return {
+    type: "success",
+    message: "Job marked as completed.",
+  };
+};
 
 const formatLocation = (job) =>
   [job?.streetAddress, job?.city, job?.state, job?.zipCode].filter(Boolean).join(", ") ||
@@ -89,9 +131,9 @@ const buildTimeline = (job) => [
     timestamp: job?.booking?.completedAt || "",
   },
   {
-    label: "Customer Payment Confirmed",
-    complete: job?.payment?.status === "paid",
-    timestamp: job?.payment?.paidAt || "",
+    label: "Customer Payment Secured",
+    complete: securedPaymentStatuses.includes(job?.payment?.status),
+    timestamp: job?.payment?.paidAt || job?.payment?.authorizedAt || "",
   },
 ];
 
@@ -178,8 +220,18 @@ function WorkerJobDetailsPageContent() {
     setActionMessage("");
 
     try {
-      await request();
-      setActionMessage(successMessage);
+      const result = await request();
+      const feedback =
+        typeof successMessage === "function"
+          ? successMessage(result)
+          : { type: "success", message: successMessage };
+
+      if (feedback?.type === "warning") {
+        setActionError(feedback.message);
+      } else {
+        setActionMessage(feedback?.message || "Action completed successfully.");
+      }
+
       setRequestVersion((currentValue) => currentValue + 1);
     } catch (error) {
       setActionError(getApiErrorMessage(error));
@@ -213,7 +265,7 @@ function WorkerJobDetailsPageContent() {
     runAction(
       "complete",
       () => bookingsApi.completeBooking(job.booking._id),
-      "Job marked as completed."
+      getCompletionFeedback
     );
   };
 
@@ -491,9 +543,7 @@ function WorkerJobDetailsPageContent() {
                         Customer payment status
                       </p>
                       <p className="mt-1 text-sm text-[#52606d]">
-                        {job.payment?.status === "paid"
-                          ? "Confirmed through Stripe"
-                          : "Pending confirmation"}
+                        {getPaymentStatusCopy(job.payment?.status)}
                       </p>
                     </div>
                   </div>

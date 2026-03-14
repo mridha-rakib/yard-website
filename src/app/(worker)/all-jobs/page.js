@@ -97,6 +97,28 @@ const getStatusTone = (status = "new") => {
 };
 
 const formatCurrency = (value) => `$${formatPrice(value || 0)}`;
+const getCompletionFeedback = (result) => {
+  const captureStatus = result?.paymentCapture?.status || "";
+
+  if (["paid", "already_paid"].includes(captureStatus)) {
+    return {
+      type: "success",
+      message: "Job completed and customer payment captured.",
+    };
+  }
+
+  if (["failed", "payment_not_found"].includes(captureStatus)) {
+    return {
+      type: "warning",
+      message: "Job completed, but customer payment needs manual review.",
+    };
+  }
+
+  return {
+    type: "success",
+    message: "Job marked as completed.",
+  };
+};
 
 const formatLocation = (job) =>
   [job?.city, job?.state, job?.zipCode].filter(Boolean).join(", ") || "Location pending";
@@ -240,8 +262,17 @@ export default function AllJobsPage() {
     setActionMessage("");
 
     try {
-      await request();
-      setActionMessage(successMessage);
+      const result = await request();
+      const feedback =
+        typeof successMessage === "function"
+          ? successMessage(result)
+          : { type: "success", message: successMessage };
+
+      if (feedback?.type === "warning") {
+        setActionError(feedback.message);
+      } else {
+        setActionMessage(feedback?.message || "Action completed successfully.");
+      }
 
       if (nextTab) {
         setActiveTab(nextTab);
@@ -286,7 +317,7 @@ export default function AllJobsPage() {
     runAction(
       `complete:${job._id}`,
       () => bookingsApi.completeBooking(job.booking._id),
-      "Job marked as completed.",
+      getCompletionFeedback,
       "completed"
     );
   };

@@ -141,7 +141,7 @@ function BookYardWorkFormContent() {
     try {
       const checkoutSession = await paymentApi.createJobCheckoutSession({
         amount: estimatedTotal,
-        description: `${resolvedServiceTitle} booking payment`,
+        description: `${resolvedServiceTitle} booking authorization`,
         cancelUrl: bookingPath,
         serviceId: selectedService.id || "",
         jobData: {
@@ -627,11 +627,12 @@ function BookYardWorkFormContent() {
                   <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" />
                   <path d="m21.854 2.147-10.94 10.939" />
                 </svg>
-                {isSubmitting ? "Redirecting to Stripe..." : "Continue to Payment"}
+                {isSubmitting ? "Redirecting to Stripe..." : "Secure Payment Method"}
               </button>
 
               <p className="text-xs text-gray-500 text-center mt-3">
-                You&apos;ll finish payment securely on Stripe, then return here automatically.
+                You&apos;ll authorize your card securely on Stripe now. The charge is captured
+                after the job is completed.
               </p>
             </div>
           </div>

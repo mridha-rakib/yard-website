@@ -58,6 +58,7 @@ const supportStatusConfig = {
 
 const paymentStatusConfig = {
   paid: { label: "Paid", badgeClassName: "bg-[#dcfce7] text-[#166534]" },
+  authorized: { label: "Authorized", badgeClassName: "bg-[#dbeafe] text-[#1d4ed8]" },
   pending: { label: "Pending", badgeClassName: "bg-[#fff7d6] text-[#a16207]" },
   failed: { label: "Failed", badgeClassName: "bg-[#fee2e2] text-[#b91c1c]" },
   cancelled: { label: "Cancelled", badgeClassName: "bg-[#e5e7eb] text-[#4b5563]" },
@@ -118,6 +119,7 @@ const getInitials = (name = "") =>
     .join("") || "YH";
 
 const formatCurrency = (value) => `$${formatPrice(value || 0)}`;
+const getPaymentDate = (payment) => payment?.paidAt || payment?.authorizedAt || payment?.createdAt;
 const isValidEmail = (value) => /\S+@\S+\.\S+/.test(value);
 
 const humanizeValue = (value = "") =>
@@ -215,7 +217,7 @@ function PaymentCard({ payment }) {
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-[#53655a]">
         <span>{humanizeValue(payment?.paymentMethod || payment?.gateway || "unknown")}</span>
-        <span>{formatDate(payment?.paidAt || payment?.createdAt)}</span>
+        <span>{formatDate(getPaymentDate(payment))}</span>
         <span className="font-semibold text-[#10231a]">{formatCurrency(payment?.amount)}</span>
       </div>
     </div>
@@ -417,7 +419,7 @@ export default function CustomerProfilePage() {
       .filter((item) => item?.status === "paid")
       .reduce((sum, item) => sum + Number(item?.amount || 0), 0),
     pendingPaymentTotal: payments
-      .filter((item) => item?.status === "pending")
+      .filter((item) => ["pending", "authorized"].includes(item?.status))
       .reduce((sum, item) => sum + Number(item?.amount || 0), 0),
   };
   const selectedConversationStatus =
@@ -1079,7 +1081,7 @@ export default function CustomerProfilePage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="rounded-[20px] border border-[#e1e8e3] bg-[#fbfdfb] px-4 py-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7280]">
-                        Pending
+                        Authorized / Pending
                       </p>
                       <p className="mt-3 text-2xl font-bold text-[#10231a]">
                         {formatCurrency(paymentSummary.pendingPaymentTotal)}
@@ -1091,7 +1093,7 @@ export default function CustomerProfilePage() {
                       </p>
                       <p className="mt-3 text-lg font-bold text-[#10231a]">
                         {paymentSummary.latestPaidPayment
-                          ? formatDate(paymentSummary.latestPaidPayment.paidAt || paymentSummary.latestPaidPayment.createdAt)
+                          ? formatDate(getPaymentDate(paymentSummary.latestPaidPayment))
                           : "No paid jobs yet"}
                       </p>
                     </div>
@@ -1141,7 +1143,7 @@ export default function CustomerProfilePage() {
                     payments.slice(0, 4).map((payment) => <PaymentCard key={payment._id} payment={payment} />)
                   ) : (
                     <div className="rounded-[22px] border border-dashed border-[#cbd8ce] bg-[#fbfdfb] px-4 py-8 text-center text-sm leading-6 text-[#53655a]">
-                      Payment history will appear here after you complete a booking checkout.
+                      Payment history will appear here after you authorize your first booking.
                     </div>
                   )}
                 </div>

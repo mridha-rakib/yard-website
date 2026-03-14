@@ -4,12 +4,21 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
+  Bell,
+  Check,
   CheckCircle2,
+  CircleDollarSign,
   Clock3,
   CreditCard,
   LoaderCircle,
+  Mail,
   MapPin,
+  Phone,
   RefreshCw,
+  Search,
+  ShieldCheck,
+  UserRoundCheck,
+  Wrench,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -20,130 +29,268 @@ import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 import { getApiErrorMessage } from "@/lib/api/http";
 import { paymentApi } from "@/lib/api/payment-api";
 import { formatPrice } from "@/lib/pricing-content";
-import { formatDate } from "@/lib/time";
+import { formatDate, formatTime } from "@/lib/time";
 import { useAuthStore } from "@/stores/use-auth-store";
 
 const POLL_INTERVAL_MS = 2500;
 const MAX_POLL_ATTEMPTS = 6;
+
+const timeLabels = {
+  anytime: "Any time",
+  morning: "Morning",
+  afternoon: "Afternoon",
+  evening: "Evening",
+};
+
+const workflowSteps = [
+  {
+    number: "1",
+    title: "We Review",
+    description: "We review your request details",
+    icon: Search,
+    tone: {
+      number: "bg-[#143f22] text-white",
+      iconWrap: "bg-[#eef4ff] text-[#5277ff]",
+    },
+  },
+  {
+    number: "2",
+    title: "Worker Matched",
+    description: "A nearby worker is matched to your job",
+    icon: UserRoundCheck,
+    tone: {
+      number: "bg-[#e5e7eb] text-[#6b7280]",
+      iconWrap: "bg-[#e9fbf0] text-[#22c55e]",
+    },
+  },
+  {
+    number: "3",
+    title: "Work Completed",
+    description: "Worker arrives and completes the job",
+    icon: Wrench,
+    tone: {
+      number: "bg-[#e5e7eb] text-[#9ca3af]",
+      iconWrap: "bg-[#f4ebff] text-[#a855f7]",
+    },
+  },
+  {
+    number: "4",
+    title: "Payment",
+    description: "You pay after job completion",
+    icon: CircleDollarSign,
+    tone: {
+      number: "bg-[#e5e7eb] text-[#9ca3af]",
+      iconWrap: "bg-[#fff7db] text-[#d4a80b]",
+    },
+  },
+];
+
+const peaceOfMindItems = [
+  {
+    title: "No Payment Required",
+    description: "Pay only after the job is completed to your satisfaction",
+    icon: ShieldCheck,
+    tone: "bg-[#dcfce7] text-[#16a34a]",
+  },
+  {
+    title: "Stay Informed",
+    description: "You'll be notified when a worker is assigned",
+    icon: Bell,
+    tone: "bg-[#dbeafe] text-[#2563eb]",
+  },
+  {
+    title: "Safe & Transparent",
+    description: "Trusted process with clear communication",
+    icon: CreditCard,
+    tone: "bg-[#f3e8ff] text-[#a855f7]",
+  },
+];
 
 const formatPreferredDate = (value) => {
   if (!value) {
     return "Flexible";
   }
 
-  return formatDate(value) || value;
+  return (
+    formatDate(value, {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }) || value
+  );
 };
 
-function BookingSuccessContent() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isReady = useAuthStore((state) => state.isReady);
-  const sessionId = searchParams.get("session_id") || "";
-  const returnPath = useMemo(
-    () => buildPathWithSearchParams(pathname, searchParams),
-    [pathname, searchParams]
-  );
-  const [sessionData, setSessionData] = useState(null);
-  const [loadError, setLoadError] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [requestVersion, setRequestVersion] = useState(0);
+const formatPreferredDateTime = (job) => {
+  const dateLabel = formatPreferredDate(job?.preferredDate);
+  const rawTimeValue = String(job?.preferredTime || "").trim();
+  const timeLabel = timeLabels[rawTimeValue.toLowerCase()] || formatTime(rawTimeValue);
 
-  useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      router.replace(buildLoginPath(returnPath));
-      return;
-    }
-
-    if (user?.role && user.role !== "customer") {
-      router.replace(getDefaultPathForUser(user));
-    }
-  }, [isAuthenticated, isReady, returnPath, router, user]);
-
-  useEffect(() => {
-    if (
-      !isReady ||
-      !isAuthenticated ||
-      !sessionId ||
-      (user?.role && user.role !== "customer")
-    ) {
-      if (isReady && !sessionId) {
-        setIsLoading(false);
-      }
-
-      return;
-    }
-
-    let isActive = true;
-    let timeoutId = null;
-
-    const loadCheckoutStatus = async (attempt = 0) => {
-      if (!isActive) {
-        return;
-      }
-
-      if (attempt === 0) {
-        setIsLoading(true);
-      }
-
-      try {
-        const nextSessionData = await paymentApi.getCheckoutSessionStatus(sessionId);
-
-        if (!isActive) {
-          return;
-        }
-
-        setSessionData(nextSessionData);
-        setLoadError("");
-
-        const shouldPoll =
-          nextSessionData.payment?.status === "pending" &&
-          attempt < MAX_POLL_ATTEMPTS;
-
-        if (shouldPoll) {
-          timeoutId = setTimeout(() => {
-            loadCheckoutStatus(attempt + 1);
-          }, POLL_INTERVAL_MS);
-        }
-      } catch (error) {
-        if (!isActive) {
-          return;
-        }
-
-        setLoadError(getApiErrorMessage(error));
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadCheckoutStatus();
-
-    return () => {
-      isActive = false;
-
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [isAuthenticated, isReady, requestVersion, sessionId, user]);
-
-  if (!isReady || !isAuthenticated || (user?.role && user.role !== "customer")) {
-    return <div className="min-h-screen bg-[#f6f8f6] px-4 py-12" />;
+  if (dateLabel === "Flexible" && !rawTimeValue) {
+    return "Flexible schedule";
   }
 
-  const payment = sessionData?.payment || null;
-  const job = sessionData?.job || sessionData?.draftJob || null;
-  const paymentConfirmed = payment?.status === "paid";
-  const paymentFailed = ["failed", "cancelled"].includes(payment?.status || "");
-  const isVerifying = Boolean(sessionId) && !paymentConfirmed && !paymentFailed;
+  if (!rawTimeValue) {
+    return dateLabel;
+  }
+
+  return `${dateLabel} at ${timeLabel}`;
+};
+
+const formatLocation = (job) =>
+  [job?.streetAddress, job?.city].filter(Boolean).join(", ") || "Address pending";
+
+const formatBudget = (payment, job) => {
+  const amount = Number(payment?.amount || job?.estimatedPrice || 0);
+  return amount > 0 ? `$${formatPrice(amount)}` : "To be confirmed";
+};
+
+function JobSummaryItem({ label, value }) {
+  return (
+    <div>
+      <p className="text-[11px] font-medium text-[#9ca3af]">{label}</p>
+      <p className="mt-1 text-[13px] font-medium leading-5 text-[#111827]">{value}</p>
+    </div>
+  );
+}
+
+function WorkflowStep({ item }) {
+  const Icon = item.icon;
+
+  return (
+    <div className="flex flex-col items-center text-center">
+      <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${item.tone.number}`}>
+        {item.number}
+      </div>
+      <div className={`mt-4 flex h-8 w-8 items-center justify-center rounded-full ${item.tone.iconWrap}`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <p className="mt-3 text-[13px] font-semibold text-[#111827]">{item.title}</p>
+      <p className="mt-2 max-w-[150px] text-[11px] leading-4 text-[#6b7280]">{item.description}</p>
+    </div>
+  );
+}
+
+function PeaceOfMindItem({ item }) {
+  const Icon = item.icon;
+
+  return (
+    <div className="flex flex-col items-center text-center">
+      <div className={`flex h-8 w-8 items-center justify-center rounded-full ${item.tone}`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <p className="mt-3 text-[13px] font-semibold text-[#111827]">{item.title}</p>
+      <p className="mt-2 max-w-[180px] text-[11px] leading-4 text-[#6b7280]">{item.description}</p>
+    </div>
+  );
+}
+
+function BookingSuccessScreen({ payment, job }) {
+  return (
+    <div className="min-h-screen bg-[#fafafa]">
+      <div className="px-4 py-12 md:py-14">
+        <div className="mx-auto max-w-[760px]">
+          <div className="flex flex-col items-center text-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#dcfce7]">
+              <Check className="h-9 w-9 text-[#16a34a]" strokeWidth={2.5} />
+            </div>
+
+            <h1 className="mt-7 text-[26px] font-bold leading-tight text-[#252b37] md:text-[40px]">
+              Job Request Submitted Successfully
+            </h1>
+            <p className="mt-3 text-sm text-[#6b7280] md:text-[15px]">
+              We&apos;ve received your request and are matching you with a local worker.
+            </p>
+          </div>
+
+          <div className="mt-10 rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] md:p-6">
+            <h2 className="text-lg font-semibold text-[#111827]">Job Summary</h2>
+
+            <div className="mt-5 grid gap-y-5 md:grid-cols-2 md:gap-x-12">
+              <JobSummaryItem label="Job Type" value={job?.title || "Service request"} />
+              <JobSummaryItem label="Preferred Date & Time" value={formatPreferredDateTime(job)} />
+              <JobSummaryItem label="Location" value={formatLocation(job)} />
+              <JobSummaryItem label="Budget" value={formatBudget(payment, job)} />
+            </div>
+
+            <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#fff5cf] px-3 py-1.5 text-xs font-medium text-[#8b6a06]">
+              <span className="h-2 w-2 rounded-full bg-[#c58b00]" />
+              Pending - Finding a worker
+            </div>
+          </div>
+
+          <div className="mt-7 rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] md:p-6">
+            <h2 className="text-center text-[24px] font-semibold text-[#252b37]">
+              What Happens Next
+            </h2>
+
+            <div className="mt-8 grid gap-8 md:grid-cols-4 md:gap-4">
+              {workflowSteps.map((item) => (
+                <WorkflowStep key={item.number} item={item} />
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-7 rounded-xl bg-[#eefcf3] p-5 md:p-6">
+            <h2 className="text-center text-[24px] font-semibold text-[#252b37]">Peace of Mind</h2>
+
+            <div className="mt-8 grid gap-8 md:grid-cols-3 md:gap-4">
+              {peaceOfMindItems.map((item) => (
+                <PeaceOfMindItem key={item.title} item={item} />
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-7 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Link
+              href="/myjobs"
+              className="inline-flex min-w-[168px] items-center justify-center rounded-md bg-[#143f22] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0f311b]"
+            >
+              View My Jobs
+            </Link>
+            <Link
+              href="/book"
+              className="inline-flex min-w-[168px] items-center justify-center rounded-md border border-[#143f22] bg-white px-6 py-3 text-sm font-semibold text-[#143f22] transition-colors hover:bg-[#f7faf8]"
+            >
+              Book Another Job
+            </Link>
+          </div>
+
+          <div className="mt-7 rounded-xl border border-[#e5e7eb] bg-white p-6 text-center shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+            <h2 className="text-[24px] font-semibold text-[#252b37]">Need Help?</h2>
+            <p className="mt-3 text-sm text-[#6b7280]">
+              Contact us anytime if you have questions about your job request.
+            </p>
+
+            <div className="mt-5 flex flex-col items-center justify-center gap-4 text-sm font-medium text-[#374151] sm:flex-row sm:gap-8">
+              <a href="mailto:support@yardpro.com" className="inline-flex items-center gap-2 hover:text-[#143f22]">
+                <Mail className="h-4 w-4 text-[#143f22]" />
+                support@yardpro.com
+              </a>
+              <a href="tel:5551234567" className="inline-flex items-center gap-2 hover:text-[#143f22]">
+                <Phone className="h-4 w-4 text-[#143f22]" />
+                (555) 123-4567
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PendingOrFailedBookingScreen({
+  isLoading,
+  loadError,
+  isVerifying,
+  job,
+  payment,
+  paymentConfirmed,
+  paymentFailed,
+  requestVersion,
+  setRequestVersion,
+  sessionId,
+}) {
   const statusTone = paymentConfirmed
     ? {
         badge: "bg-[#e7f6ec] text-[#166534]",
@@ -354,8 +501,8 @@ function BookingSuccessContent() {
                     : "Waiting for final confirmation"}
               </p>
               <p className="mt-2 text-sm leading-6 text-[#52606d]">
-                The technical Stripe session reference is stored internally. It
-                does not need to be shown to customers on this page.
+                The technical Stripe session reference is stored internally. It does not need to
+                be shown to customers on this page.
               </p>
             </div>
           </section>
@@ -377,12 +524,8 @@ function BookingSuccessContent() {
                       {index + 1}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-[#111827]">
-                        {step.title}
-                      </p>
-                      <p className="mt-1 text-sm leading-6 text-[#52606d]">
-                        {step.description}
-                      </p>
+                      <p className="text-sm font-semibold text-[#111827]">{step.title}</p>
+                      <p className="mt-1 text-sm leading-6 text-[#52606d]">{step.description}</p>
                     </div>
                   </div>
                 </div>
@@ -407,6 +550,137 @@ function BookingSuccessContent() {
         </div>
       </div>
     </div>
+  );
+}
+
+function BookingSuccessContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isReady = useAuthStore((state) => state.isReady);
+  const sessionId = searchParams.get("session_id") || "";
+  const returnPath = useMemo(
+    () => buildPathWithSearchParams(pathname, searchParams),
+    [pathname, searchParams]
+  );
+  const [sessionData, setSessionData] = useState(null);
+  const [loadError, setLoadError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [requestVersion, setRequestVersion] = useState(0);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      router.replace(buildLoginPath(returnPath));
+      return;
+    }
+
+    if (user?.role && user.role !== "customer") {
+      router.replace(getDefaultPathForUser(user));
+    }
+  }, [isAuthenticated, isReady, returnPath, router, user]);
+
+  useEffect(() => {
+    if (
+      !isReady ||
+      !isAuthenticated ||
+      !sessionId ||
+      (user?.role && user.role !== "customer")
+    ) {
+      if (isReady && !sessionId) {
+        setIsLoading(false);
+      }
+
+      return;
+    }
+
+    let isActive = true;
+    let timeoutId = null;
+
+    const loadCheckoutStatus = async (attempt = 0) => {
+      if (!isActive) {
+        return;
+      }
+
+      if (attempt === 0) {
+        setIsLoading(true);
+      }
+
+      try {
+        const nextSessionData = await paymentApi.getCheckoutSessionStatus(sessionId);
+
+        if (!isActive) {
+          return;
+        }
+
+        setSessionData(nextSessionData);
+        setLoadError("");
+
+        const shouldPoll =
+          nextSessionData.payment?.status === "pending" && attempt < MAX_POLL_ATTEMPTS;
+
+        if (shouldPoll) {
+          timeoutId = setTimeout(() => {
+            loadCheckoutStatus(attempt + 1);
+          }, POLL_INTERVAL_MS);
+        }
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setLoadError(getApiErrorMessage(error));
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadCheckoutStatus();
+
+    return () => {
+      isActive = false;
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isAuthenticated, isReady, requestVersion, sessionId, user]);
+
+  if (!isReady || !isAuthenticated || (user?.role && user.role !== "customer")) {
+    return <div className="min-h-screen bg-[#f6f8f6] px-4 py-12" />;
+  }
+
+  const payment = sessionData?.payment || null;
+  const job = sessionData?.job || sessionData?.draftJob || null;
+  const paymentSecured = ["authorized", "paid"].includes(payment?.status || "");
+  const paymentConfirmed = payment?.status === "paid";
+  const paymentFailed = ["failed", "cancelled"].includes(payment?.status || "");
+  const isVerifying = Boolean(sessionId) && !paymentSecured && !paymentFailed;
+
+  if (paymentSecured) {
+    return <BookingSuccessScreen payment={payment} job={job} />;
+  }
+
+  return (
+    <PendingOrFailedBookingScreen
+      isLoading={isLoading}
+      loadError={loadError}
+      isVerifying={isVerifying}
+      job={job}
+      payment={payment}
+      paymentConfirmed={paymentConfirmed}
+      paymentFailed={paymentFailed}
+      requestVersion={requestVersion}
+      setRequestVersion={setRequestVersion}
+      sessionId={sessionId}
+    />
   );
 }
 
