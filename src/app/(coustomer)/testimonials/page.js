@@ -92,7 +92,7 @@ const TestimonialCard = ({ testimonial, delay }) => {
       style={{ animationDelay: `${delay}ms` }}
     >
       <div className="flex items-start gap-3 mb-4">
-        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white font-serif text-lg flex-shrink-0 ring-2 ring-offset-2 ring-gray-100 group-hover:ring-gray-200 transition-all duration-500">
+        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white text-lg font-semibold flex-shrink-0 ring-2 ring-offset-2 ring-gray-100 group-hover:ring-gray-200 transition-all duration-500">
           {testimonial.name.charAt(0)}
         </div>
         <div className="flex-1 min-w-0">
@@ -128,7 +128,7 @@ const page =()=>{
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Header */}
         <div className="text-center mb-16 space-y-4">
-          <h2 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 tracking-tight">
+          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight">
             What Our Community Says
           </h2>
           <p className="text-gray-600 max-w-3xl mx-auto text-base md:text-lg font-light leading-relaxed">
@@ -156,7 +156,7 @@ const page =()=>{
             </div>
             
             <div className="space-y-3">
-              <h3 className="text-2xl md:text-3xl font-serif font-bold text-gray-900">
+              <h3 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Verified Reviews
               </h3>
               <p className="text-gray-600 max-w-2xl text-sm md:text-base leading-relaxed font-light">
@@ -176,16 +176,6 @@ const page =()=>{
       </div>
 
       <style jsx>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;600&display=swap');
-        
-        * {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-        
-        h2, h3 {
-          font-family: 'Playfair Display', Georgia, serif;
-        }
-
         @keyframes fadeInUp {
           from {
             opacity: 0;
