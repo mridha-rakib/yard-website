@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, Shield } from "lucide-react";
 import { FiLogOut } from "react-icons/fi";
-import { buildSignUpPath, getPostAuthPath, sanitizeRedirectTo } from "@/lib/auth/auth-redirect";
+import {
+  buildSignUpPath,
+  getPostAuthPath,
+  sanitizeRedirectTo,
+} from "@/lib/auth/auth-redirect";
 import { getApiErrorMessage } from "@/lib/api/http";
 import { useAuthStore } from "@/stores/use-auth-store";
 
@@ -210,13 +214,12 @@ const LoginPageContent = () => {
               </div>
 
               <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => window.alert("Forgot password is not connected yet.")}
+                <Link
+                  href="/forgot-password"
                   className="text-sm text-green-700 font-semibold hover:text-green-800 transition-colors"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
 
               <button

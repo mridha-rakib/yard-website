@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { getPostAuthPath } from "@/lib/auth/auth-redirect";
 import { getApiErrorMessage } from "@/lib/api/http";
 import { useAuthStore } from "@/stores/use-auth-store";
 
@@ -94,7 +94,7 @@ const WorkerRegistrationPage = () => {
 
   useEffect(() => {
     if (isAuthenticated && user && !submissionResult) {
-      router.replace(getDefaultPathForUser(user));
+      router.replace(getPostAuthPath(user));
     }
   }, [isAuthenticated, router, submissionResult, user]);
 
@@ -296,10 +296,10 @@ const WorkerRegistrationPage = () => {
             </p>
             <button
               type="button"
-              onClick={() => router.push(getDefaultPathForUser(submissionResult.user))}
+              onClick={() => router.push(getPostAuthPath(submissionResult.user))}
               className="mt-4 rounded-lg bg-teal-800 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900"
             >
-              Go to Worker Home
+              Continue
             </button>
           </div>
         ) : null}

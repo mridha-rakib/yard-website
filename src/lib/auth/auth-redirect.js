@@ -1,6 +1,7 @@
 import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 
-const AUTH_PATHS = new Set(["/login", "/sign-up"]);
+const AUTH_PATHS = new Set(["/login", "/sign-up", "/forgot-password", "/verify-email"]);
+const VERIFICATION_PATH = "/verify-email";
 
 export const sanitizeRedirectTo = (redirectTo) => {
   if (typeof redirectTo !== "string" || !redirectTo) {
@@ -47,8 +48,19 @@ export const buildLoginPath = (redirectTo) => buildAuthPath("/login", redirectTo
 
 export const buildSignUpPath = (redirectTo) => buildAuthPath("/sign-up", redirectTo);
 
+export const buildVerifyEmailPath = (redirectTo) =>
+  buildAuthPath(VERIFICATION_PATH, redirectTo);
+
 export const getPostAuthPath = (user, redirectTo) => {
   const safeRedirectTo = sanitizeRedirectTo(redirectTo);
+
+  if (
+    user?.role &&
+    ["customer", "worker"].includes(user.role) &&
+    user.isEmailVerified === false
+  ) {
+    return buildVerifyEmailPath(safeRedirectTo);
+  }
 
   if (user?.role === "customer" && safeRedirectTo) {
     return safeRedirectTo;

@@ -428,6 +428,23 @@ export default function AccountProfilePage({ expectedRole }) {
           </div>
         ) : null}
 
+        {profile && !profile.isEmailVerified ? (
+          <div className="mb-6 rounded-[24px] border border-[#f8e3b1] bg-[#fff8e5] px-5 py-4 text-sm text-[#8a5a00]">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <p>
+                Your email is not verified yet. Complete verification before you need
+                password recovery or other account security checks.
+              </p>
+              <Link
+                href="/verify-email"
+                className="inline-flex items-center justify-center rounded-full bg-white px-4 py-2 font-semibold text-[#7c4a00] transition-colors hover:bg-[#fff2cc]"
+              >
+                Verify email
+              </Link>
+            </div>
+          </div>
+        ) : null}
+
         {isLoading ? (
           <div className="flex min-h-[320px] items-center justify-center rounded-[28px] border border-[#d8e4db] bg-white">
             <div className="flex items-center gap-3 text-sm text-[#52606d]">
