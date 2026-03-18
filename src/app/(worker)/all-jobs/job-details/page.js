@@ -13,20 +13,17 @@ import {
   LoaderCircle,
   Mail,
   MapPin,
-  Phone,
   User,
 } from "lucide-react";
 import { bookingsApi } from "@/lib/api/bookings-api";
 import { jobsApi } from "@/lib/api/jobs-api";
 import { getApiErrorMessage } from "@/lib/api/http";
 import {
-  buildLoginPath,
   buildPathWithSearchParams,
 } from "@/lib/auth/auth-redirect";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 import { formatPrice } from "@/lib/pricing-content";
 import { formatDate, formatDateTime } from "@/lib/time";
-import { useAuthStore } from "@/stores/use-auth-store";
+import { useRequiredRole } from "@/lib/auth/use-required-role";
 
 const statusLabels = {
   new: "New",
@@ -139,13 +136,10 @@ const buildTimeline = (job) => [
 
 function WorkerJobDetailsPageContent() {
   const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isReady = useAuthStore((state) => state.isReady);
   const jobId = searchParams.get("jobId") || "";
   const currentPath = buildPathWithSearchParams(pathname, searchParams);
+  const { user, isRoleReady } = useRequiredRole("worker", currentPath);
   const [job, setJob] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
@@ -155,22 +149,7 @@ function WorkerJobDetailsPageContent() {
   const [requestVersion, setRequestVersion] = useState(0);
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      router.replace(buildLoginPath(currentPath));
-      return;
-    }
-
-    if (user?.role && user.role !== "worker") {
-      router.replace(getDefaultPathForUser(user));
-    }
-  }, [currentPath, isAuthenticated, isReady, router, user]);
-
-  useEffect(() => {
-    if (!isReady || !isAuthenticated || user?.role !== "worker") {
+    if (!isRoleReady) {
       return;
     }
 
@@ -212,7 +191,7 @@ function WorkerJobDetailsPageContent() {
     return () => {
       isActive = false;
     };
-  }, [isAuthenticated, isReady, jobId, requestVersion, user]);
+  }, [isRoleReady, jobId, requestVersion, user]);
 
   const runAction = async (actionLabel, request, successMessage) => {
     setPendingAction(actionLabel);
@@ -269,7 +248,7 @@ function WorkerJobDetailsPageContent() {
     );
   };
 
-  if (!isReady || !isAuthenticated || user?.role !== "worker") {
+  if (!isRoleReady) {
     return <div className="min-h-screen bg-[#f6f8f6]" />;
   }
 
@@ -419,18 +398,6 @@ function WorkerJobDetailsPageContent() {
                   </div>
 
                   <div className="rounded-2xl border border-[#e2e8e3] bg-[#fbfdfb] px-4 py-4">
-                    <div className="flex items-center gap-3">
-                      <Phone className="h-5 w-5 text-[#64748b]" />
-                      <div>
-                        <p className="text-sm font-semibold text-[#111827]">
-                          {job.customer?.phone || job.phoneNumber || "Phone not provided"}
-                        </p>
-                        <p className="text-sm text-[#52606d]">Phone</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-[#e2e8e3] bg-[#fbfdfb] px-4 py-4 md:col-span-2">
                     <div className="flex items-center gap-3">
                       <Mail className="h-5 w-5 text-[#64748b]" />
                       <div>

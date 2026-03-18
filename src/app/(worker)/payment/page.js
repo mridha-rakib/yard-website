@@ -14,8 +14,7 @@ import {
 import { FaWallet } from "react-icons/fa";
 import { paymentApi } from "@/lib/api/payment-api";
 import { getApiErrorMessage } from "@/lib/api/http";
-import { buildLoginPath } from "@/lib/auth/auth-redirect";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { useRequiredRole } from "@/lib/auth/use-required-role";
 import {
   createEmptyPaymentSummary,
   formatCurrency,
@@ -25,7 +24,6 @@ import {
   getPaymentDetailSummary,
   getPaymentStatusDetails,
 } from "@/lib/worker-payments";
-import { useAuthStore } from "@/stores/use-auth-store";
 
 const PAGE_LIMIT = 50;
 
@@ -62,10 +60,7 @@ const paymentMethods = [
 
 export default function WorkerPaymentsPage() {
   const pathname = usePathname();
-  const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isReady = useAuthStore((state) => state.isReady);
+  const { user, isRoleReady } = useRequiredRole("worker", pathname);
   const [payments, setPayments] = useState([]);
   const [summary, setSummary] = useState(createEmptyPaymentSummary());
   const [isLoading, setIsLoading] = useState(true);
@@ -73,22 +68,7 @@ export default function WorkerPaymentsPage() {
   const [reloadVersion, setReloadVersion] = useState(0);
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      router.replace(buildLoginPath(pathname));
-      return;
-    }
-
-    if (user?.role && user.role !== "worker") {
-      router.replace(getDefaultPathForUser(user));
-    }
-  }, [isAuthenticated, isReady, pathname, router, user]);
-
-  useEffect(() => {
-    if (!isReady || !isAuthenticated || user?.role !== "worker") {
+    if (!isRoleReady) {
       return;
     }
 
@@ -129,7 +109,7 @@ export default function WorkerPaymentsPage() {
     return () => {
       isActive = false;
     };
-  }, [isAuthenticated, isReady, reloadVersion, user]);
+  }, [isRoleReady, reloadVersion, user]);
 
   const breakdown = useMemo(() => {
     if (!payments.length) {
@@ -146,7 +126,7 @@ export default function WorkerPaymentsPage() {
 
   const keepPercentage = Math.max(0, 100 - Number(breakdown.platformFeePercentage || 12));
 
-  if (!isReady || !isAuthenticated || user?.role !== "worker") {
+  if (!isRoleReady) {
     return <div className="min-h-screen bg-gray-50" />;
   }
 

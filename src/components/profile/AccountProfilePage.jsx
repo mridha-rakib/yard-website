@@ -16,8 +16,7 @@ import {
 } from "lucide-react";
 import { usersApi } from "@/lib/api/users-api";
 import { getApiErrorMessage } from "@/lib/api/http";
-import { buildLoginPath } from "@/lib/auth/auth-redirect";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { useRequiredRole } from "@/lib/auth/use-required-role";
 import {
   TIME_HOURS,
   TIME_MINUTES,
@@ -193,9 +192,7 @@ function TimeSelectField({ label, value, onChange }) {
 export default function AccountProfilePage({ expectedRole }) {
   const pathname = usePathname();
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isReady = useAuthStore((state) => state.isReady);
+  const { user, isRoleReady } = useRequiredRole(expectedRole, pathname);
   const refreshCurrentUser = useAuthStore((state) => state.refreshCurrentUser);
   const [profile, setProfile] = useState(null);
   const [profileForm, setProfileForm] = useState(createEmptyProfileForm());
@@ -210,22 +207,7 @@ export default function AccountProfilePage({ expectedRole }) {
   const [passwordMessage, setPasswordMessage] = useState("");
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      router.replace(buildLoginPath(pathname));
-      return;
-    }
-
-    if (user?.role && user.role !== expectedRole) {
-      router.replace(getDefaultPathForUser(user));
-    }
-  }, [expectedRole, isAuthenticated, isReady, pathname, router, user]);
-
-  useEffect(() => {
-    if (!isReady || !isAuthenticated || user?.role !== expectedRole) {
+    if (!isRoleReady) {
       return;
     }
 
@@ -262,7 +244,7 @@ export default function AccountProfilePage({ expectedRole }) {
     return () => {
       isActive = false;
     };
-  }, [expectedRole, isAuthenticated, isReady, user]);
+  }, [expectedRole, isRoleReady, user]);
 
   const handleProfileFieldChange = (event) => {
     const { name, value } = event.target;
@@ -390,7 +372,7 @@ export default function AccountProfilePage({ expectedRole }) {
     }
   };
 
-  if (!isReady || !isAuthenticated || user?.role !== expectedRole) {
+  if (!isRoleReady) {
     return <div className="min-h-screen bg-[#f6f8f6]" />;
   }
 

@@ -4,26 +4,29 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { Check, Upload, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  buildLoginPath,
   buildPathWithSearchParams,
 } from "@/lib/auth/auth-redirect";
 import { getApiErrorMessage } from "@/lib/api/http";
+import { contentApi } from "@/lib/api/content-api";
 import { paymentApi } from "@/lib/api/payment-api";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
-import { getSelectedServiceFromSearchParams } from "@/lib/booking-service";
-import { formatPrice } from "@/lib/pricing-content";
-import { useAuthStore } from "@/stores/use-auth-store";
+import { useRequiredRole } from "@/lib/auth/use-required-role";
+import {
+  buildBookServiceQuery,
+  getSelectedServiceFromSearchParams,
+} from "@/lib/booking-service";
+import {
+  clonePricingCategories,
+  formatPrice,
+  normalizePricingCategories,
+  PRICING_CONTENT_KEY,
+} from "@/lib/pricing-content";
 
 function BookYardWorkFormContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isReady = useAuthStore((state) => state.isReady);
   const [formData, setFormData] = useState({
     fullName: null,
-    phone: null,
     email: null,
     streetAddress: "",
     city: "",
@@ -38,6 +41,8 @@ function BookYardWorkFormContent() {
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pricingCategories, setPricingCategories] = useState(() => clonePricingCategories());
+  const [pricingLoadError, setPricingLoadError] = useState("");
   const selectedService = useMemo(
     () => getSelectedServiceFromSearchParams(searchParams),
     [searchParams]
@@ -46,32 +51,89 @@ function BookYardWorkFormContent() {
     () => buildPathWithSearchParams(pathname, searchParams),
     [pathname, searchParams]
   );
+  const { user, isAuthenticated, isReady, isRoleReady } = useRequiredRole(
+    "customer",
+    bookingPath
+  );
   const contactDetails = useMemo(
     () => ({
       fullName: (formData.fullName ?? user?.name ?? "").trim(),
-      phone: (formData.phone ?? user?.phone ?? "").trim(),
       email: (formData.email ?? user?.email ?? "").trim(),
     }),
-    [formData.email, formData.fullName, formData.phone, user]
+    [formData.email, formData.fullName, user]
   );
-  const hasSelectedService = Boolean(selectedService.title);
+  const flattenedServices = useMemo(
+    () =>
+      pricingCategories.flatMap((category) =>
+        (category.services || []).map((service) => ({
+          ...service,
+          categoryId: category.id,
+          categoryLabel: category.label,
+          optionValue: `${category.id}::${service.id || service.title}`,
+        }))
+      ),
+    [pricingCategories]
+  );
+  const matchedSelectedService = useMemo(() => {
+    if (selectedService.id) {
+      const exactMatch = flattenedServices.find((service) => service.id === selectedService.id);
+
+      if (exactMatch) {
+        return exactMatch;
+      }
+    }
+
+    if (!selectedService.title) {
+      return null;
+    }
+
+    return (
+      flattenedServices.find(
+        (service) =>
+          service.title === selectedService.title &&
+          (!selectedService.categoryId || service.categoryId === selectedService.categoryId)
+      ) || null
+    );
+  }, [flattenedServices, selectedService.categoryId, selectedService.id, selectedService.title]);
+  const effectiveSelectedService = matchedSelectedService || selectedService;
+  const serviceSelectValue = matchedSelectedService?.optionValue || "";
+  const hasSelectedService = Boolean(
+    effectiveSelectedService.id || effectiveSelectedService.title
+  );
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
+    let ignore = false;
 
-    if (!isAuthenticated) {
-      router.replace(buildLoginPath(bookingPath));
-      return;
-    }
+    const loadPricingContent = async () => {
+      setPricingLoadError("");
 
-    if (user?.role && user.role !== "customer") {
-      router.replace(getDefaultPathForUser(user));
-    }
-  }, [bookingPath, isAuthenticated, isReady, router, user]);
+      try {
+        const content = await contentApi.getContentByKey(PRICING_CONTENT_KEY);
 
-  if (!isReady || !isAuthenticated || (user?.role && user.role !== "customer")) {
+        if (ignore) {
+          return;
+        }
+
+        setPricingCategories(normalizePricingCategories(content?.value?.categories));
+      } catch (error) {
+        if (ignore) {
+          return;
+        }
+
+        if (error?.response?.status !== 404) {
+          setPricingLoadError("Showing default service options because live pricing could not be loaded.");
+        }
+      }
+    };
+
+    loadPricingContent();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  if (!isRoleReady) {
     return <div className="min-h-screen bg-gray-50 py-8 px-4" />;
   }
 
@@ -81,6 +143,53 @@ function BookYardWorkFormContent() {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
+    if (submitError) {
+      setSubmitError("");
+    }
+  };
+
+  const handleServiceSelectionChange = (e) => {
+    const { value } = e.target;
+    const nextParams = new URLSearchParams(searchParams.toString());
+
+    if (!value) {
+      [
+        "serviceId",
+        "serviceTitle",
+        "servicePrice",
+        "serviceDuration",
+        "serviceDescription",
+        "categoryId",
+        "categoryLabel",
+      ].forEach((key) => nextParams.delete(key));
+    } else {
+      const nextService = flattenedServices.find((service) => service.optionValue === value);
+
+      if (!nextService) {
+        return;
+      }
+
+      const nextQuery = buildBookServiceQuery(nextService, {
+        id: nextService.categoryId,
+        label: nextService.categoryLabel,
+      });
+
+      Object.entries(nextQuery).forEach(([key, queryValue]) => {
+        if (queryValue) {
+          nextParams.set(key, queryValue);
+        } else {
+          nextParams.delete(key);
+        }
+      });
+    }
+
+    const nextUrl = nextParams.toString() ? `${pathname}?${nextParams.toString()}` : pathname;
+    router.replace(nextUrl);
+
+    if (errors.serviceSelection) {
+      setErrors((prev) => ({ ...prev, serviceSelection: "" }));
+    }
+
     if (submitError) {
       setSubmitError("");
     }
@@ -110,8 +219,8 @@ function BookYardWorkFormContent() {
   const validateForm = () => {
     const newErrors = {};
 
+    if (!hasSelectedService) newErrors.serviceSelection = "Please select a service";
     if (!contactDetails.fullName) newErrors.fullName = "Full name is required";
-    if (!contactDetails.phone) newErrors.phone = "Phone number is required";
     if (!contactDetails.email) newErrors.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(contactDetails.email))
       newErrors.email = "Invalid email format";
@@ -131,9 +240,9 @@ function BookYardWorkFormContent() {
       return;
     }
 
-    const resolvedServiceTitle = selectedService.title || "Yard Work Request";
+    const resolvedServiceTitle = effectiveSelectedService.title || "Yard Work Request";
     const resolvedServiceType =
-      selectedService.id || selectedService.categoryId || "yard-work";
+      effectiveSelectedService.id || effectiveSelectedService.categoryId || "yard-work";
 
     setIsSubmitting(true);
     setSubmitError("");
@@ -143,12 +252,11 @@ function BookYardWorkFormContent() {
         amount: estimatedTotal,
         description: `${resolvedServiceTitle} booking authorization`,
         cancelUrl: bookingPath,
-        serviceId: selectedService.id || "",
+        serviceId: effectiveSelectedService.id || "",
         jobData: {
           title: resolvedServiceTitle,
           serviceType: resolvedServiceType,
           fullName: contactDetails.fullName,
-          phone: contactDetails.phone,
           email: contactDetails.email,
           streetAddress: formData.streetAddress.trim(),
           city: formData.city.trim(),
@@ -175,7 +283,7 @@ function BookYardWorkFormContent() {
     }
   };
 
-  const estimatedTotal = hasSelectedService ? selectedService.price : 45;
+  const estimatedTotal = hasSelectedService ? Number(effectiveSelectedService.price || 0) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -204,6 +312,51 @@ function BookYardWorkFormContent() {
           {/* Main Form */}
           <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-6">
             <div>
+              <div className="mb-8">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Service Selection
+                </h2>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Choose Service *
+                  </label>
+                  <select
+                    value={serviceSelectValue}
+                    onChange={handleServiceSelectionChange}
+                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${
+                      errors.serviceSelection ? "border-red-500" : "border-gray-300"
+                    }`}
+                  >
+                    <option value="">Select a service and price</option>
+                    {pricingCategories.map((category) =>
+                      Array.isArray(category.services) && category.services.length > 0 ? (
+                        <optgroup key={category.id} label={category.label}>
+                          {category.services.map((service) => (
+                            <option
+                              key={`${category.id}-${service.id || service.title}`}
+                              value={`${category.id}::${service.id || service.title}`}
+                            >
+                              {`${service.title} - $${formatPrice(service.price)} starting`}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null
+                    )}
+                  </select>
+                  {errors.serviceSelection ? (
+                    <p className="mt-1 text-sm text-red-600">{errors.serviceSelection}</p>
+                  ) : null}
+                  {pricingLoadError ? (
+                    <p className="mt-2 text-sm text-amber-600">{pricingLoadError}</p>
+                  ) : (
+                    <p className="mt-2 text-sm text-gray-500">
+                      Each option shows the current starting price for that service.
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {/* Contact Details */}
               <div className="mb-8">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -231,26 +384,6 @@ function BookYardWorkFormContent() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Phone Number *
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      placeholder="(555) 123-4567"
-                      value={formData.phone ?? user?.phone ?? ""}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${
-                        errors.phone ? "border-red-500" : "border-gray-300"
-                      }`}
-                    />
-                    {errors.phone && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.phone}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Email *
                     </label>
                     <input
@@ -268,6 +401,9 @@ function BookYardWorkFormContent() {
                         {errors.email}
                       </p>
                     )}
+                    <p className="mt-2 text-sm text-gray-500">
+                      We&apos;ll contact you about this booking by email only.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -510,7 +646,7 @@ function BookYardWorkFormContent() {
                   <span className="text-gray-600">Selected Service:</span>
                   <span className="font-medium text-right">
                     {hasSelectedService
-                      ? selectedService.title
+                      ? effectiveSelectedService.title
                       : "Choose a service from pricing"}
                   </span>
                 </div>
@@ -518,7 +654,7 @@ function BookYardWorkFormContent() {
                   <span className="text-gray-600">Category:</span>
                   <span className="font-medium text-right">
                     {hasSelectedService
-                      ? selectedService.categoryLabel || "Pricing"
+                      ? effectiveSelectedService.categoryLabel || "Pricing"
                       : "Not selected"}
                   </span>
                 </div>
@@ -526,7 +662,7 @@ function BookYardWorkFormContent() {
                   <span className="text-gray-600">Duration:</span>
                   <span className="font-medium text-right">
                     {hasSelectedService
-                      ? selectedService.duration || "Not specified"
+                      ? effectiveSelectedService.duration || "Not specified"
                       : "Not selected"}
                   </span>
                 </div>
@@ -546,10 +682,10 @@ function BookYardWorkFormContent() {
                     Selected From Pricing
                   </div>
                   <p className="mt-2 text-sm font-medium text-gray-900">
-                    {selectedService.title}
+                    {effectiveSelectedService.title}
                   </p>
                   <p className="mt-1 text-sm leading-6 text-gray-600">
-                    {selectedService.description || "Service details will appear here."}
+                    {effectiveSelectedService.description || "Service details will appear here."}
                   </p>
                 </div>
               ) : null}
@@ -609,7 +745,7 @@ function BookYardWorkFormContent() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !hasSelectedService}
                 className="w-full bg-[#0a3019] text-white py-3 px-4 rounded-md font-medium hover:bg-[#0b4221] transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 <svg
@@ -627,7 +763,11 @@ function BookYardWorkFormContent() {
                   <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" />
                   <path d="m21.854 2.147-10.94 10.939" />
                 </svg>
-                {isSubmitting ? "Redirecting to Stripe..." : "Secure Payment Method"}
+                {isSubmitting
+                  ? "Redirecting to Stripe..."
+                  : hasSelectedService
+                    ? "Secure Payment Method"
+                    : "Select a Service to Continue"}
               </button>
 
               <p className="text-xs text-gray-500 text-center mt-3">

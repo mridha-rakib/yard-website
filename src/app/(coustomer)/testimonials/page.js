@@ -1,198 +1,606 @@
 "use client";
 
-import React from 'react';
-import { Shield } from 'lucide-react';
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import {
+  LoaderCircle,
+  Lock,
+  MapPin,
+  MessageSquareText,
+  Quote,
+  Shield,
+  Star,
+} from "lucide-react";
+import { buildLoginPath, buildSignUpPath } from "@/lib/auth/auth-redirect";
+import { hasRole, ROLES } from "@/lib/auth/user-roles";
+import { getApiErrorMessage } from "@/lib/api/http";
+import { testimonialApi } from "@/lib/api/testimonial-api";
+import { useAuthStore } from "@/stores/use-auth-store";
 
-const testimonials = [
-  {
-    name: "Sarah M.",
-    role: "Homeowner",
-    rating: 5,
-    text: "Found an excellent plumber within hours. The booking process was straightforward and the quality of work exceeded my expectations.",
-    location: "Seattle"
-  },
-  {
-    name: "Mike R.",    
-    role: "Renter",
-    rating: 5,
-    text: "Great platform for connecting with customers. Fair pricing system and prompt payments have grown my business significantly since joining.",
-    location: "Portland"
-  },
-  {
-    name: "Jennifer K.",
-    role: "Homeowner",
-    rating: 5,
-    text: "Easy to use interface and reliable service providers. Had my kitchen renovation completed on time and within budget.",
-    location: "Denver"
-  },
-  {
-    name: "David L.",
-    role: "Contractor",
-    rating: 5,
-    text: "Love the ongoing flexibility and customer communication tools. Makes managing my electrical business much more efficient.",
-    location: "Austin"
-  },
-  {
-    name: "Lisa H.",
-    role: "Homeowner",
-    rating: 4,
-    text: "Quick response times and professional service. The rating system helps me choose the right contractor for each project.",
-    location: "Phoenix"
-  },
-  {
-    name: "Robert T.",
-    role: "Contractor",
-    rating: 5,
-    text: "Clean platform with no hidden fees. Customer reviews are genuine and help build trust with new clients.",
-    location: "Miami"
-  },
-  {
-    name: "Amanda C.",
-    role: "Homeowner",
-    rating: 5,
-    text: "Transparent pricing and reliable contractors. Used the service multiple times for different home repairs with consistent results.",
-    location: "Chicago"
-  },
-  {
-    name: "Tom B.",
-    role: "Renter",
-    rating: 4,
-    text: "Good steady work flow and fair commission structure. The app makes it easy to manage appointments and communicate with clients.",
-    location: "Boston"
-  },
-  {
-    name: "Karen W.",
-    role: "Homeowner",
-    rating: 5,
-    text: "Impressed with the quality control and follow-up service. Every contractor I've hired has been professional and skilled.",
-    location: "Atlanta"
+const EMPTY_FORM = {
+  rating: 5,
+  text: "",
+  location: "",
+};
+
+const formatReviewDate = (value) => {
+  if (!value) {
+    return "Just now";
   }
-];
 
-const StarRating = ({ rating }) => {
-  return (
-    <div className="flex gap-0.5 mb-3">
-      {[...Array(5)].map((_, i) => (
-        <svg
-          key={i}
-          className={`w-4 h-4 ${i < rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300 fill-gray-300'}`}
-          viewBox="0 0 20 20"
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+};
+
+const buildSuggestedLocation = (user) =>
+  [user?.location?.city, user?.location?.state].filter(Boolean).join(", ");
+
+const getAverageRating = (testimonials = []) => {
+  if (!testimonials.length) {
+    return "0.0";
+  }
+
+  const totalRating = testimonials.reduce(
+    (sum, testimonial) => sum + Number(testimonial.rating || 0),
+    0
+  );
+
+  return (totalRating / testimonials.length).toFixed(1);
+};
+
+const StarRating = ({
+  rating = 0,
+  interactive = false,
+  onChange,
+  sizeClassName = "h-4 w-4",
+}) => (
+  <div className="flex items-center gap-1">
+    {Array.from({ length: 5 }, (_, index) => {
+      const starValue = index + 1;
+      const isActive = starValue <= rating;
+      const iconClassName = `${sizeClassName} transition-colors ${
+        isActive ? "fill-amber-400 text-amber-400" : "fill-transparent text-slate-300"
+      }`;
+
+      if (!interactive) {
+        return <Star key={starValue} className={iconClassName} />;
+      }
+
+      return (
+        <button
+          key={starValue}
+          type="button"
+          onClick={() => onChange?.(starValue)}
+          className="rounded-full p-1 transition hover:bg-white/10"
+          aria-label={`Set rating to ${starValue} stars`}
         >
-          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-        </svg>
-      ))}
-    </div>
-  );
-};
+          <Star className={iconClassName} />
+        </button>
+      );
+    })}
+  </div>
+);
 
-const TestimonialCard = ({ testimonial, delay }) => {
-  return (
-    <div 
-      className="group bg-white rounded-xl p-6 border border-gray-100 hover:border-gray-200 transition-all duration-500 hover:shadow-xl hover:-translate-y-1"
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <div className="flex items-start gap-3 mb-4">
-        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white text-lg font-semibold flex-shrink-0 ring-2 ring-offset-2 ring-gray-100 group-hover:ring-gray-200 transition-all duration-500">
-          {testimonial.name.charAt(0)}
+const ReviewCard = ({ testimonial }) => (
+  <article className="group flex h-full flex-col rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.35)] transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-[0_30px_90px_-42px_rgba(5,150,105,0.32)]">
+    <div className="mb-5 flex items-start justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-800 to-slate-600 text-lg font-semibold text-white shadow-lg">
+          {testimonial.name?.charAt(0) || "C"}
         </div>
-        <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-gray-900 text-sm tracking-tight">
-            {testimonial.name}
-          </h4>
-          <p className="text-xs text-gray-500 mt-0.5">{testimonial.role}</p>
+        <div>
+          <h3 className="text-base font-semibold text-slate-900">{testimonial.name}</h3>
+          <p className="text-sm text-slate-500">{testimonial.role}</p>
         </div>
       </div>
-      
+
+      {testimonial.isOwn ? (
+        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+          Your review
+        </span>
+      ) : null}
+    </div>
+
+    <div className="mb-4 flex items-center justify-between gap-4">
       <StarRating rating={testimonial.rating} />
-      
-      <p className="text-gray-700 text-[15px] leading-relaxed mb-3 font-light">
-        "{testimonial.text}"
-      </p>
-      
-      <p className="text-xs text-gray-400 font-medium tracking-wide">
-        {testimonial.location}
+      <p className="text-xs font-medium uppercase tracking-[0.24em] text-slate-400">
+        {formatReviewDate(testimonial.updatedAt || testimonial.createdAt)}
       </p>
     </div>
-  );
-};
 
-const page =()=>{
+    <div className="relative mb-5 flex-1 rounded-[24px] bg-slate-50 px-5 py-4 text-[15px] leading-7 text-slate-700">
+      <Quote className="absolute left-4 top-4 h-4 w-4 text-slate-300" />
+      <p className="pl-5">{testimonial.text}</p>
+    </div>
+
+    <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
+      <MapPin className="h-4 w-4 text-emerald-600" />
+      <span>{testimonial.location || "Verified customer"}</span>
+    </div>
+  </article>
+);
+
+const ReviewSkeleton = () => (
+  <div className="rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.35)]">
+    <div className="mb-5 flex items-center gap-3">
+      <div className="h-12 w-12 animate-pulse rounded-2xl bg-slate-200" />
+      <div className="space-y-2">
+        <div className="h-4 w-28 animate-pulse rounded-full bg-slate-200" />
+        <div className="h-3 w-24 animate-pulse rounded-full bg-slate-100" />
+      </div>
+    </div>
+    <div className="mb-4 h-4 w-28 animate-pulse rounded-full bg-slate-100" />
+    <div className="space-y-3 rounded-[24px] bg-slate-50 p-5">
+      <div className="h-3 w-full animate-pulse rounded-full bg-slate-100" />
+      <div className="h-3 w-5/6 animate-pulse rounded-full bg-slate-100" />
+      <div className="h-3 w-4/6 animate-pulse rounded-full bg-slate-100" />
+    </div>
+  </div>
+);
+
+const TestimonialsPage = () => {
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isReady = useAuthStore((state) => state.isReady);
+  const [testimonials, setTestimonials] = useState([]);
+  const [isLoadingTestimonials, setIsLoadingTestimonials] = useState(true);
+  const [isLoadingOwnReview, setIsLoadingOwnReview] = useState(false);
+  const [listError, setListError] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [submitSuccess, setSubmitSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [existingReviewId, setExistingReviewId] = useState("");
+
+  const loginHref = buildLoginPath("/testimonials");
+  const signUpHref = buildSignUpPath("/testimonials");
+  const canLeaveReview =
+    isAuthenticated && Boolean(user) && user.role !== ROLES.ADMIN && hasRole(user, ROLES.CUSTOMER);
+  const reviewCount = testimonials.length;
+  const averageRating = getAverageRating(testimonials);
+  const latestReviewDate =
+    testimonials[0]?.updatedAt || testimonials[0]?.createdAt || null;
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadTestimonials = async () => {
+      setIsLoadingTestimonials(true);
+      setListError("");
+
+      try {
+        const items = await testimonialApi.listTestimonials({ limit: 24 });
+
+        if (!ignore) {
+          setTestimonials(Array.isArray(items) ? items : []);
+        }
+      } catch (error) {
+        if (!ignore) {
+          setListError(getApiErrorMessage(error));
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingTestimonials(false);
+        }
+      }
+    };
+
+    loadTestimonials();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    if (!canLeaveReview) {
+      setExistingReviewId("");
+      setForm((current) =>
+        current.text || current.location
+          ? current
+          : {
+              ...EMPTY_FORM,
+              location: buildSuggestedLocation(user),
+            }
+      );
+      return;
+    }
+
+    let ignore = false;
+
+    const loadOwnReview = async () => {
+      setIsLoadingOwnReview(true);
+      setSubmitError("");
+
+      try {
+        const testimonial = await testimonialApi.getMyTestimonial();
+
+        if (ignore) {
+          return;
+        }
+
+        if (testimonial) {
+          setExistingReviewId(testimonial.id);
+          setForm({
+            rating: testimonial.rating,
+            text: testimonial.text,
+            location: testimonial.location,
+          });
+        } else {
+          setExistingReviewId("");
+          setForm({
+            ...EMPTY_FORM,
+            location: buildSuggestedLocation(user),
+          });
+        }
+      } catch (error) {
+        if (!ignore) {
+          setSubmitError(getApiErrorMessage(error));
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingOwnReview(false);
+        }
+      }
+    };
+
+    loadOwnReview();
+
+    return () => {
+      ignore = true;
+    };
+  }, [canLeaveReview, isReady, user]);
+
+  const handleFieldChange = (field, value) => {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+
+    if (submitError) {
+      setSubmitError("");
+    }
+
+    if (submitSuccess) {
+      setSubmitSuccess("");
+    }
+  };
+
+  const handleSubmitReview = async (event) => {
+    event.preventDefault();
+
+    if (!canLeaveReview) {
+      setSubmitError("Please sign in as a customer to leave a review.");
+      return;
+    }
+
+    if (String(form.text || "").trim().length < 20) {
+      setSubmitError("Please share at least 20 characters about your experience.");
+      return;
+    }
+
+    if (String(form.location || "").trim().length > 80) {
+      setSubmitError("Location must be 80 characters or fewer.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError("");
+    setSubmitSuccess("");
+
+    try {
+      const savedReview = await testimonialApi.upsertMyTestimonial({
+        rating: form.rating,
+        text: form.text,
+        location: form.location,
+      });
+
+      setExistingReviewId(savedReview.id);
+      setTestimonials((current) => {
+        const nextTestimonials = current.filter((item) => item.id !== savedReview.id);
+        return [{ ...savedReview, isOwn: true }, ...nextTestimonials];
+      });
+      setForm({
+        rating: savedReview.rating,
+        text: savedReview.text,
+        location: savedReview.location,
+      });
+      setSubmitSuccess(
+        existingReviewId
+          ? "Your review has been updated."
+          : "Your review is now live on the page."
+      );
+    } catch (error) {
+      setSubmitError(getApiErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <section className="py-24 px-4 relative overflow-hidden">
-      {/* Decorative background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-100/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-100/20 rounded-full blur-3xl" />
+    <section className="relative overflow-hidden bg-[#f8faf8] px-4 py-20">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-amber-100/60 blur-3xl" />
+        <div className="absolute bottom-0 right-10 h-72 w-72 rounded-full bg-emerald-100/60 blur-3xl" />
       </div>
 
-      <div className="max-w-7xl mx-auto relative z-10">
-        {/* Header */}
-        <div className="text-center mb-16 space-y-4">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight">
-            What Our Community Says
-          </h2>
-          <p className="text-gray-600 max-w-3xl mx-auto text-base md:text-lg font-light leading-relaxed">
-            Real feedback from homeowners and service professionals who use our platform every day. 
-            No filters, no highlights—just honest experiences.
+      <div className="relative mx-auto max-w-7xl">
+        <div className="mx-auto max-w-4xl text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-emerald-700 shadow-sm">
+            <Shield className="h-4 w-4" />
+            Customer Reviews
+          </span>
+          <h1 className="mt-6 text-4xl font-bold tracking-tight text-slate-900 md:text-6xl">
+            Let Customers Tell the Story
+          </h1>
+          <p className="mx-auto mt-5 max-w-3xl text-lg leading-8 text-slate-600">
+            Signed-in customers can now leave a review right from this page. Every
+            review comes from a real account, so new visitors can see honest feedback
+            before they book.
           </p>
         </div>
 
-        {/* Testimonials Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-          {testimonials.map((testimonial, index) => (
-            <TestimonialCard 
-              key={index} 
-              testimonial={testimonial}
-              delay={index * 100}
-            />
-          ))}
-        </div>
-
-        {/* Verified Reviews Badge */}
-        <div className="bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-gray-100 max-w-4xl mx-auto">
-          <div className="flex flex-col items-center text-center space-y-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-xl rotate-3 hover:rotate-0 transition-transform duration-500">
-              <Shield className="w-8 h-8 text-white" />
-            </div>
-            
-            <div className="space-y-3">
-              <h3 className="text-2xl md:text-3xl font-bold text-gray-900">
-                Verified Reviews
-              </h3>
-              <p className="text-gray-600 max-w-2xl text-sm md:text-base leading-relaxed font-light">
-                All testimonials are from verified users who have completed transactions on our platform. 
-                We moderate reviews to ensure authenticity while maintaining the genuine voice of our community members.
+        <div className="mt-16 grid gap-8 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+          <div className="rounded-[32px] bg-[#0d2c1d] p-8 text-white shadow-[0_36px_120px_-55px_rgba(10,48,25,0.8)]">
+            <div className="mb-8 space-y-3">
+              <div className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-100">
+                Leave a review
+              </div>
+              <h2 className="text-3xl font-semibold tracking-tight">
+                {existingReviewId ? "Update your review" : "Share your experience"}
+              </h2>
+              <p className="text-sm leading-7 text-emerald-50/85">
+                Reviews help future customers book with confidence and help the platform
+                understand what is working well.
               </p>
             </div>
 
-            <div className="pt-4 border-t border-gray-100 w-full">
-              <p className="text-xs text-gray-500 italic">
-                HomeConnect does not guarantee specific outcomes or service quality. Reviews reflect individual experiences 
-                and should not be considered alongside other factors when making decisions.
-              </p>
+            {!isReady ? (
+              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-emerald-50/80">
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+                Preparing your review form...
+              </div>
+            ) : canLeaveReview ? (
+              <form onSubmit={handleSubmitReview} className="space-y-6">
+                {submitError ? (
+                  <div className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                    {submitError}
+                  </div>
+                ) : null}
+
+                {submitSuccess ? (
+                  <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+                    {submitSuccess}
+                  </div>
+                ) : null}
+
+                <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-100/80">
+                    Rating
+                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-4">
+                    <StarRating
+                      rating={form.rating}
+                      interactive
+                      onChange={(value) => handleFieldChange("rating", value)}
+                      sizeClassName="h-6 w-6"
+                    />
+                    <span className="text-sm text-emerald-100/80">
+                      {form.rating} out of 5
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-emerald-50">
+                    Your review
+                  </label>
+                  <textarea
+                    rows={6}
+                    value={form.text}
+                    onChange={(event) => handleFieldChange("text", event.target.value)}
+                    placeholder="What stood out during your booking or service experience?"
+                    className="w-full rounded-[24px] border border-white/10 bg-white/5 px-5 py-4 text-sm text-white outline-none transition placeholder:text-emerald-50/40 focus:border-emerald-300 focus:bg-white/10"
+                  />
+                  <p className="mt-2 text-xs text-emerald-100/70">
+                    Minimum 20 characters. Keep it specific and helpful.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-emerald-50">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    value={form.location}
+                    onChange={(event) => handleFieldChange("location", event.target.value)}
+                    placeholder="City or neighborhood"
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm text-white outline-none transition placeholder:text-emerald-50/40 focus:border-emerald-300 focus:bg-white/10"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-4 rounded-[24px] border border-white/10 bg-black/10 px-4 py-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white">{user?.name || "Customer"}</p>
+                    <p className="text-xs text-emerald-100/70">
+                      Signed in customers can publish one review and update it anytime.
+                    </p>
+                  </div>
+                  {isLoadingOwnReview ? (
+                    <LoaderCircle className="h-5 w-5 animate-spin text-emerald-200" />
+                  ) : null}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting || isLoadingOwnReview}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-5 py-4 text-sm font-semibold text-[#0d2c1d] transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      Saving review...
+                    </>
+                  ) : existingReviewId ? (
+                    "Update Review"
+                  ) : (
+                    "Publish Review"
+                  )}
+                </button>
+              </form>
+            ) : (
+              <div className="space-y-5 rounded-[28px] border border-white/10 bg-white/5 p-6">
+                <div className="inline-flex rounded-2xl bg-white/10 p-3">
+                  <Lock className="h-6 w-6 text-emerald-100" />
+                </div>
+                <div className="space-y-3">
+                  <h3 className="text-2xl font-semibold text-white">
+                    Sign in to leave a review
+                  </h3>
+                  <p className="text-sm leading-7 text-emerald-50/80">
+                    Reviews are tied to real customer accounts so the feedback on this page
+                    stays trustworthy and useful.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Link
+                    href={loginHref}
+                    className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-[#0d2c1d] transition hover:bg-emerald-50"
+                  >
+                    Log In
+                  </Link>
+                  <Link
+                    href={signUpHref}
+                    className="inline-flex items-center justify-center rounded-2xl border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    Create Account
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.35)]">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
+                  Average Rating
+                </p>
+                <div className="mt-4 flex items-end gap-3">
+                  <span className="text-4xl font-bold tracking-tight text-slate-900">
+                    {averageRating}
+                  </span>
+                  <StarRating rating={Math.round(Number(averageRating) || 0)} />
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.35)]">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
+                  Live Reviews
+                </p>
+                <div className="mt-4 text-4xl font-bold tracking-tight text-slate-900">
+                  {reviewCount}
+                </div>
+                <p className="mt-2 text-sm text-slate-500">
+                  Real reviews submitted from customer accounts.
+                </p>
+              </div>
+
+              <div className="rounded-[28px] border border-white/70 bg-white/90 p-6 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.35)]">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
+                  Latest Activity
+                </p>
+                <div className="mt-4 text-xl font-semibold tracking-tight text-slate-900">
+                  {latestReviewDate ? formatReviewDate(latestReviewDate) : "Waiting for the first review"}
+                </div>
+                <p className="mt-2 text-sm text-slate-500">
+                  New submissions show up here after they are saved.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-[32px] border border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70 p-8 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.35)]">
+              <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                <div className="max-w-2xl">
+                  <div className="inline-flex rounded-2xl bg-emerald-100 p-3 text-emerald-700">
+                    <MessageSquareText className="h-6 w-6" />
+                  </div>
+                  <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-900">
+                    Verified, account-based reviews
+                  </h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">
+                    Every review on this page comes from a signed-in customer account.
+                    That keeps the feedback real, easy to trust, and directly connected to
+                    actual platform users.
+                  </p>
+                </div>
+
+                <div className="rounded-[24px] border border-emerald-100 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm">
+                  <p className="font-semibold text-slate-900">Helpful review tips</p>
+                  <p className="mt-2 leading-6">
+                    Mention what was smooth, what could be better, and what other customers
+                    should know before booking.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
+        <div className="mt-16 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
+              Latest Reviews
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+              What customers are saying right now
+            </h2>
+          </div>
+          <p className="max-w-2xl text-sm leading-7 text-slate-500">
+            Newly saved reviews appear here immediately, so the page stays fresh and
+            useful for future customers.
+          </p>
+        </div>
+
+        {listError ? (
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {listError}
+          </div>
+        ) : null}
+
+        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {isLoadingTestimonials
+            ? Array.from({ length: 6 }, (_, index) => <ReviewSkeleton key={index} />)
+            : testimonials.map((testimonial) => (
+                <ReviewCard key={testimonial.id} testimonial={testimonial} />
+              ))}
+        </div>
+
+        {!isLoadingTestimonials && !testimonials.length ? (
+          <div className="mt-10 rounded-[32px] border border-dashed border-slate-300 bg-white/90 px-6 py-12 text-center shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
+              No reviews yet
+            </p>
+            <h3 className="mt-3 text-2xl font-semibold text-slate-900">
+              Be the first customer to leave feedback
+            </h3>
+            <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
+              Once a customer submits a review, it will appear here for everyone visiting
+              the testimonials page.
+            </p>
+          </div>
+        ) : null}
       </div>
-
-      <style jsx>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .grid > div {
-          animation: fadeInUp 0.8s ease-out forwards;
-          opacity: 0;
-        }
-      `}</style>
     </section>
   );
-}
-export default page;
+};
+
+export default TestimonialsPage;

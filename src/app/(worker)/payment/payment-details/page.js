@@ -16,8 +16,7 @@ import {
 } from "lucide-react";
 import { paymentApi } from "@/lib/api/payment-api";
 import { getApiErrorMessage } from "@/lib/api/http";
-import { buildLoginPath } from "@/lib/auth/auth-redirect";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { useRequiredRole } from "@/lib/auth/use-required-role";
 import {
   formatCurrency,
   formatLongDateTime,
@@ -32,7 +31,6 @@ import {
   getPaymentStatusDetails,
   getWorkerInitials,
 } from "@/lib/worker-payments";
-import { useAuthStore } from "@/stores/use-auth-store";
 
 function WorkerPaymentDetailsFallback() {
   return (
@@ -49,31 +47,14 @@ function WorkerPaymentDetailsPageContent() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isReady = useAuthStore((state) => state.isReady);
   const paymentId = searchParams.get("paymentId") || "";
+  const { user, isRoleReady } = useRequiredRole("worker", pathname);
   const [payment, setPayment] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      router.replace(buildLoginPath(pathname));
-      return;
-    }
-
-    if (user?.role && user.role !== "worker") {
-      router.replace(getDefaultPathForUser(user));
-    }
-  }, [isAuthenticated, isReady, pathname, router, user]);
-
-  useEffect(() => {
-    if (!isReady || !isAuthenticated || user?.role !== "worker") {
+    if (!isRoleReady) {
       return;
     }
 
@@ -117,7 +98,7 @@ function WorkerPaymentDetailsPageContent() {
     return () => {
       isActive = false;
     };
-  }, [isAuthenticated, isReady, paymentId, user]);
+  }, [isRoleReady, paymentId, user]);
 
   const summary = useMemo(() => getPaymentDetailSummary(payment || {}), [payment]);
   const statusDetails = getPaymentStatusDetails(payment?.status);
@@ -127,7 +108,7 @@ function WorkerPaymentDetailsPageContent() {
   const completedDate = getCompletedDate(payment || {});
   const detailIdLabel = getPaymentIdLabel(payment || {});
 
-  if (!isReady || !isAuthenticated || user?.role !== "worker") {
+  if (!isRoleReady) {
     return <div className="min-h-screen bg-gray-50" />;
   }
 

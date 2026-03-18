@@ -1,4 +1,5 @@
 import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { hasRole } from "./user-roles";
 
 const AUTH_PATHS = new Set(["/login", "/sign-up", "/forgot-password", "/verify-email"]);
 const VERIFICATION_PATH = "/verify-email";
@@ -55,14 +56,13 @@ export const getPostAuthPath = (user, redirectTo) => {
   const safeRedirectTo = sanitizeRedirectTo(redirectTo);
 
   if (
-    user?.role &&
-    ["customer", "worker"].includes(user.role) &&
+    (hasRole(user, "customer") || hasRole(user, "worker")) &&
     user.isEmailVerified === false
   ) {
     return buildVerifyEmailPath(safeRedirectTo);
   }
 
-  if (user?.role === "customer" && safeRedirectTo) {
+  if (safeRedirectTo) {
     return safeRedirectTo;
   }
 

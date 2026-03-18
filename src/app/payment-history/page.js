@@ -16,11 +16,9 @@ import {
 } from "lucide-react";
 import { paymentApi } from "@/lib/api/payment-api";
 import { getApiErrorMessage } from "@/lib/api/http";
-import { buildLoginPath } from "@/lib/auth/auth-redirect";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { useRequiredRole } from "@/lib/auth/use-required-role";
 import { formatPrice } from "@/lib/pricing-content";
 import { formatDate } from "@/lib/time";
-import { useAuthStore } from "@/stores/use-auth-store";
 
 const PAGE_LIMIT = 100;
 
@@ -129,10 +127,7 @@ const getPaymentHeadline = (payment) =>
 
 export default function PaymentHistoryPage() {
   const pathname = usePathname();
-  const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isReady = useAuthStore((state) => state.isReady);
+  const { user, isAuthenticated, isRoleReady } = useRequiredRole("customer", pathname);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -145,22 +140,7 @@ export default function PaymentHistoryPage() {
   const deferredSearchTerm = useDeferredValue(searchTerm);
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      router.replace(buildLoginPath(pathname));
-      return;
-    }
-
-    if (user?.role && user.role !== "customer") {
-      router.replace(getDefaultPathForUser(user));
-    }
-  }, [isAuthenticated, isReady, pathname, router, user]);
-
-  useEffect(() => {
-    if (!isReady || !isAuthenticated || user?.role !== "customer") {
+    if (!isRoleReady) {
       return;
     }
 
@@ -221,14 +201,14 @@ export default function PaymentHistoryPage() {
     dateFilter,
     deferredSearchTerm,
     isAuthenticated,
-    isReady,
+    isRoleReady,
     methodFilter,
     reloadVersion,
     statusFilter,
     user,
   ]);
 
-  if (!isReady || !isAuthenticated || user?.role !== "customer") {
+  if (!isRoleReady) {
     return <div className="min-h-screen bg-gray-50" />;
   }
 

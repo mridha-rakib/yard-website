@@ -13,20 +13,17 @@ import {
   LoaderCircle,
   Mail,
   MapPin,
-  Phone,
   RefreshCw,
   User,
 } from "lucide-react";
 import { jobsApi } from "@/lib/api/jobs-api";
 import { getApiErrorMessage } from "@/lib/api/http";
 import {
-  buildLoginPath,
   buildPathWithSearchParams,
 } from "@/lib/auth/auth-redirect";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { useRequiredRole } from "@/lib/auth/use-required-role";
 import { formatPrice } from "@/lib/pricing-content";
 import { formatDate, formatDateTime } from "@/lib/time";
-import { useAuthStore } from "@/stores/use-auth-store";
 
 const statusConfig = {
   new: {
@@ -180,35 +177,17 @@ function TimelineStep({ item }) {
 
 function BookingDetailsPageContent() {
   const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isReady = useAuthStore((state) => state.isReady);
   const jobId = searchParams.get("jobId") || "";
   const currentPath = buildPathWithSearchParams(pathname, searchParams);
+  const { user, isAuthenticated, isRoleReady } = useRequiredRole("customer", currentPath);
   const [job, setJob] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [requestVersion, setRequestVersion] = useState(0);
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      router.replace(buildLoginPath(currentPath));
-      return;
-    }
-
-    if (user?.role && user.role !== "customer") {
-      router.replace(getDefaultPathForUser(user));
-    }
-  }, [currentPath, isAuthenticated, isReady, router, user]);
-
-  useEffect(() => {
-    if (!isReady || !isAuthenticated || user?.role !== "customer") {
+    if (!isRoleReady) {
       return;
     }
 
@@ -250,9 +229,9 @@ function BookingDetailsPageContent() {
     return () => {
       isActive = false;
     };
-  }, [isAuthenticated, isReady, jobId, requestVersion, user]);
+  }, [isRoleReady, jobId, requestVersion, user]);
 
-  if (!isReady || !isAuthenticated || user?.role !== "customer") {
+  if (!isRoleReady) {
     return <div className="min-h-screen bg-[#f6f8f6]" />;
   }
 
@@ -415,12 +394,6 @@ function BookingDetailsPageContent() {
                       </div>
                     ) : null}
 
-                    {job.assignedWorker.phone ? (
-                      <div className="flex items-center gap-3 text-sm text-[#52606d]">
-                        <Phone className="h-4 w-4" />
-                        <span>{job.assignedWorker.phone}</span>
-                      </div>
-                    ) : null}
                   </div>
                 ) : (
                   <div className="mt-5 rounded-2xl border border-[#e8eee9] bg-[#fbfdfb] px-4 py-4 text-sm leading-7 text-[#52606d]">

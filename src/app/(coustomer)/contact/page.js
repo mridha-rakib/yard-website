@@ -1,14 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Phone } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import Banner from '@/app/component/Banner';
 
 const page = () => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    phone: '',
     subject: '',
     message: ''
   });
@@ -101,7 +100,6 @@ const page = () => {
     setFormData({
       fullName: '',
       email: '',
-      phone: '',
       subject: '',
       message: ''
     });
@@ -171,48 +169,29 @@ const page = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Phone */}
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone (Optional)
-                </label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="Enter your phone number"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition"
-                />
-              </div>
-
-              {/* Subject */}
-              <div>
-                <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
-                  Subject *
-                </label>
-                <select
-                  id="subject"
-                  name="subject"
-                  value={formData.subject}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition bg-white ${
-                    errors.subject ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select a subject</option>
-                  <option value="general">General Inquiry</option>
-                  <option value="support">Technical Support</option>
-                  <option value="sales">Sales</option>
-                  <option value="feedback">Feedback</option>
-                  <option value="other">Other</option>
-                </select>
-                {errors.subject && (
-                  <p className="mt-1 text-sm text-red-600">{errors.subject}</p>
-                )}
-              </div>
+            <div className="mb-6">
+              <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+                Subject *
+              </label>
+              <select
+                id="subject"
+                name="subject"
+                value={formData.subject}
+                onChange={handleChange}
+                className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition bg-white ${
+                  errors.subject ? 'border-red-500' : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select a subject</option>
+                <option value="general">General Inquiry</option>
+                <option value="support">Technical Support</option>
+                <option value="sales">Sales</option>
+                <option value="feedback">Feedback</option>
+                <option value="other">Other</option>
+              </select>
+              {errors.subject && (
+                <p className="mt-1 text-sm text-red-600">{errors.subject}</p>
+              )}
             </div>
 
             {/* Message */}
@@ -264,7 +243,7 @@ const page = () => {
         </div>
 
         {/* Contact Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Email Us */}
           <div className="bg-white rounded-lg shadow-md p-6 text-center">
             <div className="bg-gray-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
@@ -273,16 +252,6 @@ const page = () => {
             <h3 className="font-semibold text-gray-900 mb-2">Email Us</h3>
             <p className="text-green-700 font-medium mb-1">support@vardcare.com</p>
             <p className="text-gray-500 text-sm">We'll respond within 24 hours</p>
-          </div>
-
-          {/* Call Us */}
-          <div className="bg-white rounded-lg shadow-md p-6 text-center">
-            <div className="bg-gray-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
-              <Phone className="w-6 h-6 text-gray-700" />
-            </div>
-            <h3 className="font-semibold text-gray-900 mb-2">Call Us</h3>
-            <p className="text-green-700 font-medium mb-1">(555) 123-4567</p>
-            <p className="text-gray-500 text-sm">Mon-Fri, 8AM - 6PM</p>
           </div>
         </div>
       </div>

@@ -1,13 +1,17 @@
+import { getPrimaryRole } from "./user-roles";
+
 export const getDefaultPathForUser = (user) => {
-  if (!user?.role) {
+  const role = getPrimaryRole(user);
+
+  if (!role) {
     return "/";
   }
 
-  if (user.role === "worker") {
+  if (role === "worker") {
     return "/worker-home";
   }
 
-  if (user.role === "customer") {
+  if (role === "customer") {
     return "/myjobs";
   }
 

@@ -1,4 +1,4 @@
-const buildBookServiceQuery = (service, category) => ({
+export const buildBookServiceQuery = (service, category) => ({
   serviceId: service?.id || "",
   serviceTitle: service?.title || "",
   servicePrice: String(service?.price ?? ""),

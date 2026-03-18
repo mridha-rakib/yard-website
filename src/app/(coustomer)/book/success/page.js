@@ -13,7 +13,6 @@ import {
   LoaderCircle,
   Mail,
   MapPin,
-  Phone,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -22,15 +21,13 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  buildLoginPath,
   buildPathWithSearchParams,
 } from "@/lib/auth/auth-redirect";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 import { getApiErrorMessage } from "@/lib/api/http";
 import { paymentApi } from "@/lib/api/payment-api";
 import { formatPrice } from "@/lib/pricing-content";
 import { formatDate, formatTime } from "@/lib/time";
-import { useAuthStore } from "@/stores/use-auth-store";
+import { useRequiredRole } from "@/lib/auth/use-required-role";
 
 const POLL_INTERVAL_MS = 2500;
 const MAX_POLL_ATTEMPTS = 6;
@@ -262,14 +259,10 @@ function BookingSuccessScreen({ payment, job }) {
               Contact us anytime if you have questions about your job request.
             </p>
 
-            <div className="mt-5 flex flex-col items-center justify-center gap-4 text-sm font-medium text-[#374151] sm:flex-row sm:gap-8">
+            <div className="mt-5 flex items-center justify-center text-sm font-medium text-[#374151]">
               <a href="mailto:support@yardpro.com" className="inline-flex items-center gap-2 hover:text-[#143f22]">
                 <Mail className="h-4 w-4 text-[#143f22]" />
                 support@yardpro.com
-              </a>
-              <a href="tel:5551234567" className="inline-flex items-center gap-2 hover:text-[#143f22]">
-                <Phone className="h-4 w-4 text-[#143f22]" />
-                (555) 123-4567
               </a>
             </div>
           </div>
@@ -554,16 +547,16 @@ function PendingOrFailedBookingScreen({
 }
 
 function BookingSuccessContent() {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isReady = useAuthStore((state) => state.isReady);
   const sessionId = searchParams.get("session_id") || "";
   const returnPath = useMemo(
     () => buildPathWithSearchParams(pathname, searchParams),
     [pathname, searchParams]
+  );
+  const { user, isAuthenticated, isReady, isRoleReady } = useRequiredRole(
+    "customer",
+    returnPath
   );
   const [sessionData, setSessionData] = useState(null);
   const [loadError, setLoadError] = useState("");
@@ -571,26 +564,10 @@ function BookingSuccessContent() {
   const [requestVersion, setRequestVersion] = useState(0);
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      router.replace(buildLoginPath(returnPath));
-      return;
-    }
-
-    if (user?.role && user.role !== "customer") {
-      router.replace(getDefaultPathForUser(user));
-    }
-  }, [isAuthenticated, isReady, returnPath, router, user]);
-
-  useEffect(() => {
     if (
-      !isReady ||
-      !isAuthenticated ||
+      !isRoleReady ||
       !sessionId ||
-      (user?.role && user.role !== "customer")
+      !user
     ) {
       if (isReady && !sessionId) {
         setIsLoading(false);
@@ -651,9 +628,9 @@ function BookingSuccessContent() {
         clearTimeout(timeoutId);
       }
     };
-  }, [isAuthenticated, isReady, requestVersion, sessionId, user]);
+  }, [isRoleReady, isReady, requestVersion, sessionId, user]);
 
-  if (!isReady || !isAuthenticated || (user?.role && user.role !== "customer")) {
+  if (!isRoleReady) {
     return <div className="min-h-screen bg-[#f6f8f6] px-4 py-12" />;
   }
 

@@ -122,6 +122,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   registerWorker: async (payload) => {
+    const previousSession = getStoredAuthSession();
     set({ isInitializing: true, error: null });
 
     try {
@@ -130,8 +131,20 @@ export const useAuthStore = create((set, get) => ({
       set(buildAuthenticatedState(session));
       return session;
     } catch (error) {
-      clearStoredAuthSession();
-      set(buildLoggedOutState(getApiErrorMessage(error)));
+      const shouldPreserveSession =
+        Boolean(previousSession?.tokens?.accessToken && previousSession?.tokens?.refreshToken) &&
+        error?.response?.status !== 401;
+
+      if (shouldPreserveSession) {
+        set({
+          ...buildAuthenticatedState(previousSession),
+          error: getApiErrorMessage(error),
+        });
+      } else {
+        clearStoredAuthSession();
+        set(buildLoggedOutState(getApiErrorMessage(error)));
+      }
+
       throw error;
     }
   },
@@ -148,6 +161,24 @@ export const useAuthStore = create((set, get) => ({
     } catch (error) {
       const message = getApiErrorMessage(error);
       set({ error: message });
+      throw error;
+    }
+  },
+
+  switchRole: async (role) => {
+    set({ isInitializing: true, error: null });
+
+    try {
+      const session = await authApi.switchRole({ role });
+      setStoredAuthSession(session);
+      set(buildAuthenticatedState(session));
+      return session;
+    } catch (error) {
+      set({
+        isInitializing: false,
+        isReady: true,
+        error: getApiErrorMessage(error),
+      });
       throw error;
     }
   },

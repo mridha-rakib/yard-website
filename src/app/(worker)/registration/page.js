@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getPostAuthPath } from "@/lib/auth/auth-redirect";
+import { hasRole } from "@/lib/auth/user-roles";
 import { getApiErrorMessage } from "@/lib/api/http";
 import { useAuthStore } from "@/stores/use-auth-store";
 
@@ -78,11 +79,15 @@ const validateField = (name, value) => {
   }
 };
 
+const buildCityZipValue = (location = {}) =>
+  [location?.city, location?.zipCode].filter(Boolean).join(", ");
+
 const WorkerRegistrationPage = () => {
   const router = useRouter();
   const registerWorker = useAuthStore((state) => state.registerWorker);
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isReady = useAuthStore((state) => state.isReady);
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -91,12 +96,41 @@ const WorkerRegistrationPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submissionResult, setSubmissionResult] = useState(null);
+  const canUpgradeExistingAccount =
+    Boolean(user) && hasRole(user, "customer") && !hasRole(user, "worker");
+  const alreadyHasWorkerAccess = Boolean(user) && hasRole(user, "worker");
 
   useEffect(() => {
-    if (isAuthenticated && user && !submissionResult) {
+    if (!isReady || !isAuthenticated || !user || submissionResult) {
+      return;
+    }
+
+    if (alreadyHasWorkerAccess || !canUpgradeExistingAccount) {
       router.replace(getPostAuthPath(user));
     }
-  }, [isAuthenticated, router, submissionResult, user]);
+  }, [
+    alreadyHasWorkerAccess,
+    canUpgradeExistingAccount,
+    isAuthenticated,
+    isReady,
+    router,
+    submissionResult,
+    user,
+  ]);
+
+  useEffect(() => {
+    if (!isReady || !canUpgradeExistingAccount || !user) {
+      return;
+    }
+
+    setFormData((currentFormData) => ({
+      ...currentFormData,
+      fullName: currentFormData.fullName || user.name || "",
+      cityZipCode: currentFormData.cityZipCode || buildCityZipValue(user.location),
+      phoneNumber: user.phone || currentFormData.phoneNumber,
+      emailAddress: user.email || currentFormData.emailAddress,
+    }));
+  }, [canUpgradeExistingAccount, isReady, user]);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -256,6 +290,7 @@ const WorkerRegistrationPage = () => {
       setSubmissionResult({
         user: session.user,
         generatedPassword: session.metadata?.generatedPassword || "",
+        upgradedExistingAccount: Boolean(session.metadata?.upgradedExistingAccount),
       });
       resetForm();
     } catch (error) {
@@ -269,9 +304,22 @@ const WorkerRegistrationPage = () => {
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Apply as a Worker</h1>
-          <p className="text-gray-600">Fill out the form below to start earning with local yard jobs.</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {canUpgradeExistingAccount ? "Become a Worker" : "Apply as a Worker"}
+          </h1>
+          <p className="text-gray-600">
+            {canUpgradeExistingAccount
+              ? "Use your current account to unlock worker access while keeping the same email and phone number."
+              : "Fill out the form below to start earning with local yard jobs."}
+          </p>
         </div>
+
+        {canUpgradeExistingAccount && !submissionResult ? (
+          <div className="mb-6 rounded-xl border border-teal-200 bg-teal-50 p-5 text-sm text-teal-900">
+            This will upgrade your current account so you can book services as a customer and work jobs
+            with the same login. Your email and phone number stay linked to this account.
+          </div>
+        ) : null}
 
         {submitError ? (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -281,9 +329,13 @@ const WorkerRegistrationPage = () => {
 
         {submissionResult ? (
           <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-5">
-            <h2 className="text-lg font-semibold text-green-900">Application submitted</h2>
+            <h2 className="text-lg font-semibold text-green-900">
+              {submissionResult.upgradedExistingAccount ? "Worker access enabled" : "Application submitted"}
+            </h2>
             <p className="mt-2 text-sm text-green-800">
-              Your worker account was created and signed in successfully.
+              {submissionResult.upgradedExistingAccount
+                ? "Your existing account now supports both customer and worker access."
+                : "Your worker account was created and signed in successfully."}
             </p>
             {submissionResult.generatedPassword ? (
               <p className="mt-2 text-sm text-green-900">
@@ -370,7 +422,7 @@ const WorkerRegistrationPage = () => {
                   : "border-gray-300 focus:ring-teal-500 focus:border-teal-500"
               } focus:ring-2 focus:outline-none transition-colors`}
             />
-            <p className="mt-1 text-xs text-gray-500">We'll match you with jobs in your area</p>
+            <p className="mt-1 text-xs text-gray-500">We&apos;ll match you with jobs in your area</p>
             {errors.cityZipCode && touched.cityZipCode ? (
               <p className="mt-1 text-sm text-red-500">{errors.cityZipCode}</p>
             ) : null}
@@ -388,12 +440,18 @@ const WorkerRegistrationPage = () => {
               onChange={handleInputChange}
               onBlur={handleBlur}
               placeholder="(555) 123-4567"
+              readOnly={canUpgradeExistingAccount}
               className={`w-full px-4 py-3 rounded-lg border ${
                 errors.phoneNumber && touched.phoneNumber
                   ? "border-red-500 focus:ring-red-500 focus:border-red-500"
                   : "border-gray-300 focus:ring-teal-500 focus:border-teal-500"
-              } focus:ring-2 focus:outline-none transition-colors`}
+              } ${canUpgradeExistingAccount ? "bg-gray-50 text-gray-600" : ""} focus:ring-2 focus:outline-none transition-colors`}
             />
+            {canUpgradeExistingAccount ? (
+              <p className="mt-1 text-xs text-gray-500">
+                Your worker access must use the same phone number already saved on this account.
+              </p>
+            ) : null}
             {errors.phoneNumber && touched.phoneNumber ? (
               <p className="mt-1 text-sm text-red-500">{errors.phoneNumber}</p>
             ) : null}
@@ -411,12 +469,18 @@ const WorkerRegistrationPage = () => {
               onChange={handleInputChange}
               onBlur={handleBlur}
               placeholder="your-email@example.com"
+              readOnly={canUpgradeExistingAccount}
               className={`w-full px-4 py-3 rounded-lg border ${
                 errors.emailAddress && touched.emailAddress
                   ? "border-red-500 focus:ring-red-500 focus:border-red-500"
                   : "border-gray-300 focus:ring-teal-500 focus:border-teal-500"
-              } focus:ring-2 focus:outline-none transition-colors`}
+              } ${canUpgradeExistingAccount ? "bg-gray-50 text-gray-600" : ""} focus:ring-2 focus:outline-none transition-colors`}
             />
+            {canUpgradeExistingAccount ? (
+              <p className="mt-1 text-xs text-gray-500">
+                Your worker access must use the same email address already saved on this account.
+              </p>
+            ) : null}
             {errors.emailAddress && touched.emailAddress ? (
               <p className="mt-1 text-sm text-red-500">{errors.emailAddress}</p>
             ) : null}
@@ -572,7 +636,7 @@ const WorkerRegistrationPage = () => {
                 Submitting...
               </span>
             ) : (
-              "Submit Application"
+              canUpgradeExistingAccount ? "Enable Worker Access" : "Submit Application"
             )}
           </button>
 

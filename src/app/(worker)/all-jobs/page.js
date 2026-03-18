@@ -17,11 +17,9 @@ import {
 import { bookingsApi } from "@/lib/api/bookings-api";
 import { jobsApi } from "@/lib/api/jobs-api";
 import { getApiErrorMessage } from "@/lib/api/http";
-import { buildLoginPath } from "@/lib/auth/auth-redirect";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { useRequiredRole } from "@/lib/auth/use-required-role";
 import { formatPrice } from "@/lib/pricing-content";
 import { formatDate } from "@/lib/time";
-import { useAuthStore } from "@/stores/use-auth-store";
 
 const PAGE_LIMIT = 100;
 
@@ -152,10 +150,7 @@ const formatSchedule = (job) => {
 
 export default function AllJobsPage() {
   const pathname = usePathname();
-  const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isReady = useAuthStore((state) => state.isReady);
+  const { user, isRoleReady } = useRequiredRole("worker", pathname);
   const [activeTab, setActiveTab] = useState("new");
   const [availableJobs, setAvailableJobs] = useState([]);
   const [myJobs, setMyJobs] = useState([]);
@@ -173,23 +168,7 @@ export default function AllJobsPage() {
   const [requestVersion, setRequestVersion] = useState(0);
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      router.replace(buildLoginPath(pathname));
-      return;
-    }
-
-    if (user?.role && user.role !== "worker") {
-      router.replace(getDefaultPathForUser(user));
-      return;
-    }
-  }, [isAuthenticated, isReady, pathname, router, user]);
-
-  useEffect(() => {
-    if (!isReady || !isAuthenticated || user?.role !== "worker") {
+    if (!isRoleReady) {
       return;
     }
 
@@ -241,7 +220,7 @@ export default function AllJobsPage() {
     return () => {
       isActive = false;
     };
-  }, [isAuthenticated, isReady, requestVersion, user]);
+  }, [isRoleReady, requestVersion, user]);
 
   const acceptedJobs = myJobs.filter((job) => job.status === "assigned");
   const inProgressJobs = myJobs.filter((job) => job.status === "in_progress");
@@ -322,7 +301,7 @@ export default function AllJobsPage() {
     );
   };
 
-  if (!isReady || !isAuthenticated || user?.role !== "worker") {
+  if (!isRoleReady) {
     return <div className="min-h-screen bg-[#f6f8f6]" />;
   }
 

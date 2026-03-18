@@ -24,8 +24,7 @@ import { paymentApi } from "@/lib/api/payment-api";
 import { supportApi } from "@/lib/api/support-api";
 import { usersApi } from "@/lib/api/users-api";
 import { getApiErrorMessage } from "@/lib/api/http";
-import { buildLoginPath } from "@/lib/auth/auth-redirect";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { useRequiredRole } from "@/lib/auth/use-required-role";
 import { formatPrice } from "@/lib/pricing-content";
 import { formatDate, formatDateTime } from "@/lib/time";
 import { useAuthStore } from "@/stores/use-auth-store";
@@ -227,9 +226,10 @@ function PaymentCard({ payment }) {
 export default function CustomerProfilePage() {
   const pathname = usePathname();
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isReady = useAuthStore((state) => state.isReady);
+  const { user, isAuthenticated, isReady, isRoleReady } = useRequiredRole(
+    "customer",
+    pathname
+  );
   const refreshCurrentUser = useAuthStore((state) => state.refreshCurrentUser);
 
   const [profile, setProfile] = useState(null);
@@ -262,18 +262,7 @@ export default function CustomerProfilePage() {
   const [reloadVersion, setReloadVersion] = useState(0);
 
   useEffect(() => {
-    if (!isReady) return;
-    if (!isAuthenticated) {
-      router.replace(buildLoginPath(pathname));
-      return;
-    }
-    if (user?.role && user.role !== "customer") {
-      router.replace(getDefaultPathForUser(user));
-    }
-  }, [isAuthenticated, isReady, pathname, router, user]);
-
-  useEffect(() => {
-    if (!isReady || !isAuthenticated || user?.role !== "customer") return;
+    if (!isRoleReady) return;
 
     let isActive = true;
 
@@ -350,10 +339,10 @@ export default function CustomerProfilePage() {
     return () => {
       isActive = false;
     };
-  }, [isAuthenticated, isReady, reloadVersion, user]);
+  }, [isRoleReady, reloadVersion, user]);
 
   useEffect(() => {
-    if (!isReady || !isAuthenticated || user?.role !== "customer" || !activeConversationId) return;
+    if (!isRoleReady || !activeConversationId) return;
 
     let isActive = true;
 
@@ -390,7 +379,7 @@ export default function CustomerProfilePage() {
     return () => {
       isActive = false;
     };
-  }, [activeConversationId, isAuthenticated, isReady, user]);
+  }, [activeConversationId, isRoleReady, user]);
 
   const quickLinks = [
     { href: "/payment-history", label: "Payment History" },
@@ -565,7 +554,7 @@ export default function CustomerProfilePage() {
     }
   };
 
-  if (!isReady || !isAuthenticated || user?.role !== "customer") {
+  if (!isRoleReady) {
     return <div className="min-h-screen bg-[#f4f8f4]" />;
   }
 

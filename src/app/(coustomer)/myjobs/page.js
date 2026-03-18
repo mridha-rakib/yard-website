@@ -14,11 +14,9 @@ import {
 } from "lucide-react";
 import { jobsApi } from "@/lib/api/jobs-api";
 import { getApiErrorMessage } from "@/lib/api/http";
-import { buildLoginPath } from "@/lib/auth/auth-redirect";
-import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
+import { useRequiredRole } from "@/lib/auth/use-required-role";
 import { formatPrice } from "@/lib/pricing-content";
 import { formatDate } from "@/lib/time";
-import { useAuthStore } from "@/stores/use-auth-store";
 
 const PAGE_LIMIT = 100;
 const fullDateFormat = {
@@ -165,32 +163,14 @@ function JobCard({ job }) {
 
 export default function MyJobsPage() {
   const pathname = usePathname();
-  const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isReady = useAuthStore((state) => state.isReady);
+  const { user, isAuthenticated, isRoleReady } = useRequiredRole("customer", pathname);
   const [jobs, setJobs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [requestVersion, setRequestVersion] = useState(0);
 
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    if (!isAuthenticated) {
-      router.replace(buildLoginPath(pathname));
-      return;
-    }
-
-    if (user?.role && user.role !== "customer") {
-      router.replace(getDefaultPathForUser(user));
-    }
-  }, [isAuthenticated, isReady, pathname, router, user]);
-
-  useEffect(() => {
-    if (!isReady || !isAuthenticated || user?.role !== "customer") {
+    if (!isRoleReady) {
       return;
     }
 
@@ -226,9 +206,9 @@ export default function MyJobsPage() {
     return () => {
       isActive = false;
     };
-  }, [isAuthenticated, isReady, requestVersion, user]);
+  }, [isRoleReady, requestVersion, user]);
 
-  if (!isReady || !isAuthenticated || user?.role !== "customer") {
+  if (!isRoleReady) {
     return <div className="min-h-screen bg-[#f6f8f6]" />;
   }
 
