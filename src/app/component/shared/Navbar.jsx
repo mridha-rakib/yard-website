@@ -1,9 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, LogOut, SquareUserRound } from "lucide-react";
+import {
+  Bell,
+  BriefcaseBusiness,
+  CheckCheck,
+  ChevronDown,
+  CreditCard,
+  LifeBuoy,
+  LoaderCircle,
+  LogOut,
+  SquareUserRound,
+  UserPlus,
+} from "lucide-react";
 import { MdClose, MdMenu } from "react-icons/md";
 import { buildLoginPath } from "@/lib/auth/auth-redirect";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,6 +25,7 @@ import {
   hasRole,
   isDualRoleUser,
 } from "@/lib/auth/user-roles";
+import { notificationsApi } from "@/lib/api/notifications-api";
 import { useAuthStore } from "@/stores/use-auth-store";
 
 const workerRoutes = [
@@ -132,11 +144,58 @@ const getAccountLabel = (user) => {
   return "Account";
 };
 
+const formatRelativeTime = (value) => {
+  const timestamp = new Date(value).getTime();
+
+  if (!timestamp) {
+    return "Just now";
+  }
+
+  const diffMs = Date.now() - timestamp;
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
+};
+
+const getNotificationIcon = (notification) => {
+  if (notification?.category === "support") {
+    return LifeBuoy;
+  }
+
+  if (notification?.category === "payment") {
+    return CreditCard;
+  }
+
+  if (notification?.category === "job" || notification?.category === "booking") {
+    return BriefcaseBusiness;
+  }
+
+  if (notification?.category === "account" || notification?.type?.includes("worker")) {
+    return UserPlus;
+  }
+
+  return Bell;
+};
+
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [roleSwitching, setRoleSwitching] = useState("");
   const accountMenuRef = useRef(null);
+  const notificationMenuRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
@@ -144,6 +203,9 @@ export default function Navbar() {
   const isInitializing = useAuthStore((state) => state.isInitializing);
   const logout = useAuthStore((state) => state.logout);
   const switchRole = useAuthStore((state) => state.switchRole);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsCount, setNotificationsCount] = useState(0);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const isWorkerPage = workerRoutes.some((route) => pathname.startsWith(route));
   const navLinks = isWorkerPage ? workerLinks : publicLinks;
   const accountHref = getDefaultPathForUser(user);
@@ -167,13 +229,95 @@ export default function Navbar() {
 
   const closeMenus = () => {
     setAccountMenuOpen(false);
+    setNotificationsOpen(false);
     setOpen(false);
   };
+
+  const loadNotifications = useCallback(async ({ silent = false } = {}) => {
+    if (!isAuthenticated || !user?._id) {
+      setNotifications([]);
+      setNotificationsCount(0);
+      return;
+    }
+
+    if (!silent) {
+      setIsLoadingNotifications(true);
+    }
+
+    try {
+      const result = await notificationsApi.listNotifications({ limit: 8 });
+      setNotifications(result.items || []);
+      setNotificationsCount(Number(result.summary?.unreadCount || 0));
+    } catch {
+      if (!silent) {
+        setNotifications([]);
+      }
+    } finally {
+      if (!silent) {
+        setIsLoadingNotifications(false);
+      }
+    }
+  }, [isAuthenticated, user?._id]);
 
   const handleLogout = async () => {
     closeMenus();
     await logout();
     router.push("/");
+  };
+
+  const handleNotificationToggle = async () => {
+    const nextOpenValue = !notificationsOpen;
+    setNotificationsOpen(nextOpenValue);
+    setAccountMenuOpen(false);
+
+    if (nextOpenValue) {
+      await loadNotifications({ silent: false });
+    }
+  };
+
+  const handleNotificationClick = async (notification) => {
+    if (!notification) {
+      return;
+    }
+
+    if (!notification.isRead) {
+      try {
+        await notificationsApi.markAsRead(notification._id);
+      } catch {
+        // Preserve navigation if the notification API is temporarily unavailable.
+      }
+
+      setNotifications((currentValue) =>
+        currentValue.map((item) =>
+          item._id === notification._id
+            ? { ...item, isRead: true, readAt: item.readAt || new Date().toISOString() }
+            : item
+        )
+      );
+      setNotificationsCount((currentValue) => Math.max(0, currentValue - 1));
+    }
+
+    closeMenus();
+
+    if (notification.link) {
+      router.push(notification.link);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await notificationsApi.markAllAsRead();
+      setNotifications((currentValue) =>
+        currentValue.map((item) => ({
+          ...item,
+          isRead: true,
+          readAt: item.readAt || new Date().toISOString(),
+        }))
+      );
+      setNotificationsCount(0);
+    } catch {
+      // Ignore transient failures in the dropdown.
+    }
   };
 
   const handleRoleSwitch = async (targetRole, href = getRoleDashboardHref(targetRole)) => {
@@ -206,19 +350,24 @@ export default function Navbar() {
   };
 
   useEffect(() => {
-    if (!accountMenuOpen) {
+    if (!accountMenuOpen && !notificationsOpen) {
       return;
     }
 
     const handlePointerDown = (event) => {
-      if (!accountMenuRef.current?.contains(event.target)) {
+      const clickedAccountMenu = accountMenuRef.current?.contains(event.target);
+      const clickedNotificationMenu = notificationMenuRef.current?.contains(event.target);
+
+      if (!clickedAccountMenu && !clickedNotificationMenu) {
         setAccountMenuOpen(false);
+        setNotificationsOpen(false);
       }
     };
 
     const handleEscape = (event) => {
       if (event.key === "Escape") {
         setAccountMenuOpen(false);
+        setNotificationsOpen(false);
       }
     };
 
@@ -229,7 +378,23 @@ export default function Navbar() {
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [accountMenuOpen]);
+  }, [accountMenuOpen, notificationsOpen]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?._id) {
+      setNotifications([]);
+      setNotificationsCount(0);
+      return undefined;
+    }
+
+    loadNotifications({ silent: false });
+
+    const intervalId = window.setInterval(() => {
+      loadNotifications({ silent: true });
+    }, 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isAuthenticated, user?._id, loadNotifications]);
 
   return (
     <nav className="w-full bg-white border-b border-gray-200">
@@ -279,10 +444,104 @@ export default function Navbar() {
                   </div>
                 ) : null}
 
+                <div ref={notificationMenuRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={handleNotificationToggle}
+                    className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#d7e0d9] bg-[#f8faf8] text-[#334155] transition-colors hover:bg-[#f2f6f2]"
+                  >
+                    <Bell className="h-4 w-4" />
+                    {notificationsCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#dc2626] px-1 text-[10px] font-semibold text-white">
+                        {notificationsCount > 9 ? "9+" : notificationsCount}
+                      </span>
+                    ) : null}
+                  </button>
+
+                  {notificationsOpen ? (
+                    <div className="absolute right-0 top-full z-50 mt-3 w-[22rem] rounded-2xl border border-[#d7e0d9] bg-white p-3 shadow-[0_18px_48px_rgba(15,23,42,0.12)]">
+                      <div className="flex items-center justify-between gap-3 border-b border-[#e2e8e3] px-1 pb-3">
+                        <div>
+                          <p className="text-sm font-semibold text-[#111827]">Notifications</p>
+                          <p className="mt-1 text-[11px] text-[#6b7280]">
+                            {notificationsCount
+                              ? `${notificationsCount} unread`
+                              : "You're all caught up."}
+                          </p>
+                        </div>
+
+                        {notificationsCount > 0 ? (
+                          <button
+                            type="button"
+                            onClick={handleMarkAllNotificationsRead}
+                            className="inline-flex items-center gap-1 rounded-full bg-[#eef6ff] px-3 py-1 text-[11px] font-semibold text-[#1d4ed8]"
+                          >
+                            <CheckCheck className="h-3.5 w-3.5" />
+                            Mark all read
+                          </button>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-3 max-h-[360px] space-y-2 overflow-y-auto pr-1">
+                        {isLoadingNotifications ? (
+                          <div className="flex items-center justify-center rounded-xl border border-dashed border-[#d7e0d9] px-4 py-8 text-sm text-[#6b7280]">
+                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                            Loading notifications...
+                          </div>
+                        ) : notifications.length ? (
+                          notifications.map((notification) => {
+                            const Icon = getNotificationIcon(notification);
+
+                            return (
+                              <button
+                                key={notification._id}
+                                type="button"
+                                onClick={() => handleNotificationClick(notification)}
+                                className={`flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors ${
+                                  notification.isRead
+                                    ? "border-[#ebf0ec] bg-white hover:bg-[#f8fbf8]"
+                                    : "border-[#dce8df] bg-[#f5faf6] hover:bg-[#eef7f0]"
+                                }`}
+                              >
+                                <div className="rounded-xl bg-[#eef4ef] p-2 text-[#0A3019]">
+                                  <Icon className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <p className="text-sm font-semibold text-[#111827]">
+                                      {notification.title}
+                                    </p>
+                                    {!notification.isRead ? (
+                                      <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-[#16a34a]" />
+                                    ) : null}
+                                  </div>
+                                  <p className="mt-1 text-sm leading-6 text-[#4b5563]">
+                                    {notification.message}
+                                  </p>
+                                  <p className="mt-2 text-[11px] text-[#6b7280]">
+                                    {formatRelativeTime(notification.createdAt)}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-[#d7e0d9] px-4 py-8 text-center text-sm text-[#6b7280]">
+                            No notifications yet.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
                 <div ref={accountMenuRef} className="relative">
                   <button
                     type="button"
-                    onClick={() => setAccountMenuOpen((currentValue) => !currentValue)}
+                    onClick={() => {
+                      setAccountMenuOpen((currentValue) => !currentValue);
+                      setNotificationsOpen(false);
+                    }}
                     className="inline-flex items-center gap-3 rounded-full border border-[#d7e0d9] bg-[#f8faf8] px-2 py-1.5 text-left transition-colors hover:bg-[#f2f6f2] focus:outline-none"
                   >
                     <Avatar className="size-9">
@@ -474,9 +733,12 @@ export default function Navbar() {
                   onClick={() => setOpen(false)}
                   className="inline-flex items-center gap-3 rounded-full border border-[#d7e0d9] bg-[#f8faf8] px-3 py-2"
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0A3019] text-xs font-semibold text-white">
-                    {getUserShortName(user).slice(0, 1).toUpperCase()}
-                  </div>
+                  <Avatar className="size-8">
+                    <AvatarImage src={user.profilePhotoUrl || ""} alt={user.name || "Account"} />
+                    <AvatarFallback className="bg-[#0A3019] text-xs font-semibold text-white">
+                      {getUserShortName(user).slice(0, 1).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-[#111827]">
                       {getUserShortName(user)}

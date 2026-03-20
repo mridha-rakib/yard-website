@@ -2,26 +2,31 @@ export const LEGAL_DOCUMENTS = [
   {
     id: "terms-of-service",
     href: "/terms-conditions",
-    title: "Terms of Service",
-    summary: "The rules, responsibilities, and service expectations for using Yard Heroes.",
+    title: "Terms & Conditions",
+    summary: "Please read these Terms carefully before using our platform.",
+    layout: "document",
   },
   {
     id: "privacy-policy",
     href: "/privacy-policy",
     title: "Privacy Policy",
-    summary: "How personal information is collected, used, stored, and protected.",
+    summary:
+      "Your privacy matters to us. Here's how we collect and safeguard your personal information when using our platform.",
+    layout: "privacy",
   },
   {
     id: "cookie-policy",
     href: "/cookie-policy",
     title: "Cookie Policy",
     summary: "How cookies and related technologies are used across the platform.",
+    layout: "document",
   },
   {
     id: "gdpr-compliance",
     href: "/gdpr-compliance",
     title: "GDPR Compliance",
     summary: "Information about user rights, data handling, and compliance commitments.",
+    layout: "document",
   },
 ];
 

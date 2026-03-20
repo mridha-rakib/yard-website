@@ -6,6 +6,16 @@ import { useEffect, useState } from "react";
 import { contentApi } from "@/lib/api/content-api";
 import { LEGAL_DOCUMENTS, getLegalDocumentDefinition } from "@/lib/legal-documents";
 
+const getDisplayTitle = (documentId, documentName, fallbackTitle) => {
+  const normalizedName = String(documentName || "").trim();
+
+  if (documentId === "terms-of-service" && /terms of service/i.test(normalizedName)) {
+    return "Terms & Conditions";
+  }
+
+  return normalizedName || fallbackTitle;
+};
+
 const Footer = () => {
   const [legalLinks, setLegalLinks] = useState(LEGAL_DOCUMENTS);
 
@@ -30,7 +40,7 @@ const Footer = () => {
 
             return {
               ...definition,
-              title: document?.name || definition.title,
+              title: getDisplayTitle(document?.id, document?.name, definition.title),
             };
           })
           .filter(Boolean);

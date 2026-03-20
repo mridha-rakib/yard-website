@@ -1,5 +1,5 @@
-import LegalDocumentPage from "@/components/legal/LegalDocumentPage";
+import TermsConditionsPageContent from "@/components/legal/TermsConditionsPageContent";
 
 export default function TermsConditionsPage() {
-  return <LegalDocumentPage documentId="terms-of-service" />;
+  return <TermsConditionsPageContent />;
 }

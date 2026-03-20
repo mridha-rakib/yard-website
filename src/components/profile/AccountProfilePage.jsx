@@ -2,21 +2,28 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   CalendarDays,
   Camera,
+  ImagePlus,
   LoaderCircle,
   LockKeyhole,
   Mail,
   MapPin,
   Phone,
   ShieldCheck,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import { usersApi } from "@/lib/api/users-api";
 import { getApiErrorMessage } from "@/lib/api/http";
 import { useRequiredRole } from "@/lib/auth/use-required-role";
+import {
+  PROFILE_PHOTO_ACCEPT,
+  PROFILE_PHOTO_REQUIREMENTS,
+  optimizeProfilePhotoFile,
+} from "@/lib/profile-photo";
 import {
   TIME_HOURS,
   TIME_MINUTES,
@@ -191,7 +198,6 @@ function TimeSelectField({ label, value, onChange }) {
 
 export default function AccountProfilePage({ expectedRole }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, isRoleReady } = useRequiredRole(expectedRole, pathname);
   const refreshCurrentUser = useAuthStore((state) => state.refreshCurrentUser);
   const [profile, setProfile] = useState(null);
@@ -200,6 +206,7 @@ export default function AccountProfilePage({ expectedRole }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isPreparingPhoto, setIsPreparingPhoto] = useState(false);
   const [profileError, setProfileError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [pageError, setPageError] = useState("");
@@ -254,6 +261,41 @@ export default function AccountProfilePage({ expectedRole }) {
     }));
     setProfileError("");
     setProfileMessage("");
+  };
+
+  const handleProfilePhotoFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setIsPreparingPhoto(true);
+    setProfileError("");
+    setProfileMessage("");
+
+    try {
+      const optimizedPhoto = await optimizeProfilePhotoFile(file);
+      setProfileForm((currentValue) => ({
+        ...currentValue,
+        profilePhotoUrl: optimizedPhoto,
+      }));
+      setProfileMessage("Profile photo is ready. Click Save Profile to apply it.");
+    } catch (error) {
+      setProfileError(error?.message || "We could not prepare that photo.");
+    } finally {
+      setIsPreparingPhoto(false);
+    }
+  };
+
+  const handleProfilePhotoRemove = () => {
+    setProfileForm((currentValue) => ({
+      ...currentValue,
+      profilePhotoUrl: "",
+    }));
+    setProfileError("");
+    setProfileMessage("Profile photo will be removed when you save.");
   };
 
   const handlePasswordFieldChange = (event) => {
@@ -381,6 +423,7 @@ export default function AccountProfilePage({ expectedRole }) {
     .filter(Boolean)
     .join(", ");
   const dashboardHref = expectedRole === "worker" ? "/all-jobs" : "/myjobs";
+  const profilePhotoInputId = `${expectedRole}-profile-photo-upload`;
 
   return (
     <div className="min-h-screen bg-[#f6f8f6] py-8">
@@ -547,16 +590,75 @@ export default function AccountProfilePage({ expectedRole }) {
                       />
                     </label>
 
-                    <label className="text-sm font-medium text-[#334155] md:col-span-2">
-                      Profile photo URL
-                      <input
-                        type="url"
-                        name="profilePhotoUrl"
-                        value={profileForm.profilePhotoUrl}
-                        onChange={handleProfileFieldChange}
-                        className="mt-2 w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
-                      />
-                    </label>
+                    <div className="md:col-span-2 rounded-[24px] border border-[#d5ddd7] bg-[#fbfdfb] p-4">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                        {profileImageUrl ? (
+                          <img
+                            src={profileImageUrl}
+                            alt={profileForm.name || "Profile"}
+                            className="h-20 w-20 rounded-full border border-[#d8e4db] object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#0A3019] text-2xl font-bold text-white">
+                            {getInitials(profileForm.name)}
+                          </div>
+                        )}
+
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-[#334155]">Profile picture</p>
+                          <p className="mt-1 text-sm text-[#64748b]">
+                            Upload a new photo, then save your profile to update it everywhere.
+                          </p>
+
+                          <div className="mt-4 flex flex-wrap items-center gap-3">
+                            <input
+                              id={profilePhotoInputId}
+                              type="file"
+                              accept={PROFILE_PHOTO_ACCEPT}
+                              onChange={handleProfilePhotoFileChange}
+                              className="hidden"
+                              disabled={isPreparingPhoto || isSavingProfile}
+                            />
+                            <label
+                              htmlFor={profilePhotoInputId}
+                              className={`inline-flex items-center justify-center rounded-full bg-[#0A3019] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0b4221] ${
+                                isPreparingPhoto || isSavingProfile
+                                  ? "cursor-not-allowed opacity-70"
+                                  : ""
+                              }`}
+                            >
+                              {isPreparingPhoto ? (
+                                <>
+                                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                                  Preparing photo...
+                                </>
+                              ) : (
+                                <>
+                                  <ImagePlus className="mr-2 h-4 w-4" />
+                                  Upload photo
+                                </>
+                              )}
+                            </label>
+
+                            {profileImageUrl ? (
+                              <button
+                                type="button"
+                                onClick={handleProfilePhotoRemove}
+                                disabled={isPreparingPhoto || isSavingProfile}
+                                className="inline-flex items-center justify-center rounded-full border border-[#d5ddd7] bg-white px-4 py-2 text-sm font-semibold text-[#425246] transition-colors hover:bg-[#f6faf7] disabled:cursor-not-allowed disabled:opacity-70"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Remove photo
+                              </button>
+                            ) : null}
+                          </div>
+
+                          <p className="mt-3 text-xs text-[#64748b]">
+                            {PROFILE_PHOTO_REQUIREMENTS}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </section>
 
@@ -842,8 +944,9 @@ export default function AccountProfilePage({ expectedRole }) {
                     <div className="flex items-start gap-3">
                       <Camera className="mt-0.5 h-5 w-5 text-[#64748b]" />
                       <p className="text-sm leading-6 text-[#52606d]">
-                        You can manage your profile picture with a hosted image URL. Password
-                        changes require your current password for security.
+                        Upload a profile photo from your device and save it with the rest of your
+                        profile changes. Password changes still require your current password for
+                        security.
                       </p>
                     </div>
                   </div>

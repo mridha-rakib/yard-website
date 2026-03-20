@@ -286,21 +286,19 @@ const SignUpPageContent = () => {
 
             <div className="text-sm text-gray-600 text-center py-2">
               By signing up, you agree to our{" "}
-              <button
-                type="button"
-                onClick={() => window.alert("Terms & Conditions page is not connected yet.")}
+              <Link
+                href="/terms-conditions"
                 className="text-green-700 font-semibold hover:text-green-800 underline"
               >
                 Terms
-              </button>{" "}
+              </Link>{" "}
               and{" "}
-              <button
-                type="button"
-                onClick={() => window.alert("Privacy Policy page is not connected yet.")}
+              <Link
+                href="/privacy-policy"
                 className="text-green-700 font-semibold hover:text-green-800 underline"
               >
                 Privacy Policy
-              </button>
+              </Link>
             </div>
 
             <button

@@ -1,5 +1,5 @@
-import LegalDocumentPage from "@/components/legal/LegalDocumentPage";
+import PrivacyPolicyPageContent from "@/components/legal/PrivacyPolicyPageContent";
 
 export default function PrivacyPolicyPage() {
-  return <LegalDocumentPage documentId="privacy-policy" />;
+  return <PrivacyPolicyPageContent />;
 }

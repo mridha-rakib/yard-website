@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   ArrowRight,
   CalendarDays,
   CreditCard,
+  ImagePlus,
   LoaderCircle,
   LockKeyhole,
   Mail,
@@ -17,6 +18,7 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import { jobsApi } from "@/lib/api/jobs-api";
@@ -25,6 +27,11 @@ import { supportApi } from "@/lib/api/support-api";
 import { usersApi } from "@/lib/api/users-api";
 import { getApiErrorMessage } from "@/lib/api/http";
 import { useRequiredRole } from "@/lib/auth/use-required-role";
+import {
+  PROFILE_PHOTO_ACCEPT,
+  PROFILE_PHOTO_REQUIREMENTS,
+  optimizeProfilePhotoFile,
+} from "@/lib/profile-photo";
 import { formatPrice } from "@/lib/pricing-content";
 import { formatDate, formatDateTime } from "@/lib/time";
 import { useAuthStore } from "@/stores/use-auth-store";
@@ -225,11 +232,7 @@ function PaymentCard({ payment }) {
 
 export default function CustomerProfilePage() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { user, isAuthenticated, isReady, isRoleReady } = useRequiredRole(
-    "customer",
-    pathname
-  );
+  const { user, isRoleReady } = useRequiredRole("customer", pathname);
   const refreshCurrentUser = useAuthStore((state) => state.refreshCurrentUser);
 
   const [profile, setProfile] = useState(null);
@@ -250,6 +253,7 @@ export default function CustomerProfilePage() {
   const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isPreparingPhoto, setIsPreparingPhoto] = useState(false);
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const [isSendingReply, setIsSendingReply] = useState(false);
   const [pageError, setPageError] = useState("");
@@ -384,7 +388,7 @@ export default function CustomerProfilePage() {
   const quickLinks = [
     { href: "/payment-history", label: "Payment History" },
     { href: "/myjobs", label: "Track current jobs" },
-    { href: "/terms-conditions", label: "Terms of service" },
+    { href: "/terms-conditions", label: "Terms & Conditions" },
     { href: "/privacy-policy", label: "Privacy policy" },
   ];
 
@@ -413,12 +417,48 @@ export default function CustomerProfilePage() {
   };
   const selectedConversationStatus =
     supportStatusConfig[activeConversation?.status] || supportStatusConfig.open;
+  const profilePhotoInputId = "customer-profile-photo-upload";
 
   const handleProfileFieldChange = (event) => {
     const { name, value } = event.target;
     setProfileForm((currentValue) => ({ ...currentValue, [name]: value }));
     setProfileError("");
     setProfileMessage("");
+  };
+
+  const handleProfilePhotoFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setIsPreparingPhoto(true);
+    setProfileError("");
+    setProfileMessage("");
+
+    try {
+      const optimizedPhoto = await optimizeProfilePhotoFile(file);
+      setProfileForm((currentValue) => ({
+        ...currentValue,
+        profilePhotoUrl: optimizedPhoto,
+      }));
+      setProfileMessage("Profile photo is ready. Save your profile to apply it.");
+    } catch (error) {
+      setProfileError(error?.message || "We could not prepare that photo.");
+    } finally {
+      setIsPreparingPhoto(false);
+    }
+  };
+
+  const handleProfilePhotoRemove = () => {
+    setProfileForm((currentValue) => ({
+      ...currentValue,
+      profilePhotoUrl: "",
+    }));
+    setProfileError("");
+    setProfileMessage("Profile photo will be removed when you save.");
   };
 
   const handlePasswordFieldChange = (event) => {
@@ -735,7 +775,6 @@ export default function CustomerProfilePage() {
                       { name: "name", label: "Full name", type: "text", span: "" },
                       { name: "phone", label: "Phone", type: "tel", span: "" },
                       { name: "email", label: "Email", type: "email", span: "md:col-span-2" },
-                      { name: "profilePhotoUrl", label: "Profile photo URL", type: "url", span: "md:col-span-2", placeholder: "https://" },
                       { name: "addressLine1", label: "Street address", type: "text", span: "md:col-span-2" },
                       { name: "city", label: "City", type: "text", span: "" },
                       { name: "state", label: "State", type: "text", span: "" },
@@ -753,6 +792,76 @@ export default function CustomerProfilePage() {
                         />
                       </label>
                     ))}
+
+                    <div className="md:col-span-2 rounded-[24px] border border-[#d5ddd7] bg-[#fbfdfb] p-4">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                        {profileForm.profilePhotoUrl ? (
+                          <img
+                            src={profileForm.profilePhotoUrl}
+                            alt={profileForm.name || "Profile"}
+                            className="h-20 w-20 rounded-full border border-[#d8e4db] object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#0A3019] text-2xl font-bold text-white">
+                            {getInitials(profileForm.name)}
+                          </div>
+                        )}
+
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-[#334155]">Profile picture</p>
+                          <p className="mt-1 text-sm text-[#64748b]">
+                            Choose a photo from your device, then save your profile to update it.
+                          </p>
+
+                          <div className="mt-4 flex flex-wrap items-center gap-3">
+                            <input
+                              id={profilePhotoInputId}
+                              type="file"
+                              accept={PROFILE_PHOTO_ACCEPT}
+                              onChange={handleProfilePhotoFileChange}
+                              className="hidden"
+                              disabled={isPreparingPhoto || isSavingProfile}
+                            />
+                            <label
+                              htmlFor={profilePhotoInputId}
+                              className={`inline-flex items-center justify-center rounded-full bg-[#0A3019] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0d4021] ${
+                                isPreparingPhoto || isSavingProfile
+                                  ? "cursor-not-allowed opacity-70"
+                                  : ""
+                              }`}
+                            >
+                              {isPreparingPhoto ? (
+                                <>
+                                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                                  Preparing photo...
+                                </>
+                              ) : (
+                                <>
+                                  <ImagePlus className="mr-2 h-4 w-4" />
+                                  Upload photo
+                                </>
+                              )}
+                            </label>
+
+                            {profileForm.profilePhotoUrl ? (
+                              <button
+                                type="button"
+                                onClick={handleProfilePhotoRemove}
+                                disabled={isPreparingPhoto || isSavingProfile}
+                                className="inline-flex items-center justify-center rounded-full border border-[#d5ddd7] bg-white px-4 py-2 text-sm font-semibold text-[#425246] transition-colors hover:bg-[#f6faf7] disabled:cursor-not-allowed disabled:opacity-70"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Remove photo
+                              </button>
+                            ) : null}
+                          </div>
+
+                          <p className="mt-3 text-xs text-[#64748b]">
+                            {PROFILE_PHOTO_REQUIREMENTS}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {profileMessage ? (

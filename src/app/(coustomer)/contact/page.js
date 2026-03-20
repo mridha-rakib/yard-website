@@ -1,134 +1,205 @@
 'use client';
 
-import { useState } from 'react';
-import { Mail } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Mail, LoaderCircle } from 'lucide-react';
 import Banner from '@/app/component/Banner';
+import { supportApi } from '@/lib/api/support-api';
+import { getApiErrorMessage } from '@/lib/api/http';
+import { useAuthStore } from '@/stores/use-auth-store';
 
-const page = () => {
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    subject: '',
-    message: ''
-  });
-  
-  const [errors, setErrors] = useState({
-    fullName: '',
-    email: '',
-    subject: '',
-    message: ''
-  });
-  
-  const [showNotification, setShowNotification] = useState(false);
+const CONTACT_SUBJECT_OPTIONS = [
+  { value: 'general', label: 'General Inquiry', category: 'general' },
+  { value: 'support', label: 'Technical Support', category: 'account' },
+  { value: 'sales', label: 'Sales', category: 'general' },
+  { value: 'feedback', label: 'Feedback', category: 'general' },
+  { value: 'other', label: 'Other', category: 'general' },
+];
+
+const createEmptyForm = () => ({
+  fullName: '',
+  email: '',
+  subject: '',
+  message: '',
+});
+
+const createEmptyErrors = () => ({
+  fullName: '',
+  email: '',
+  subject: '',
+  message: '',
+});
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+const ContactPage = () => {
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const [formData, setFormData] = useState(createEmptyForm);
+  const [errors, setErrors] = useState(createEmptyErrors);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [submissionError, setSubmissionError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
+  const isSignedInUser = Boolean(isAuthenticated && user);
+
+  useEffect(() => {
+    if (!isSignedInUser) {
+      return;
+    }
+
+    setFormData((currentValue) => ({
+      ...currentValue,
+      fullName: user?.name || '',
+      email: user?.email || '',
     }));
-    
-    // Clear error when user starts typing
+  }, [isSignedInUser, user?.email, user?.name]);
+
+  const selectedSubject = useMemo(
+    () => CONTACT_SUBJECT_OPTIONS.find((option) => option.value === formData.subject),
+    [formData.subject]
+  );
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((currentValue) => ({
+      ...currentValue,
+      [name]: value,
+    }));
+
     if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
+      setErrors((currentValue) => ({
+        ...currentValue,
+        [name]: '',
       }));
+    }
+
+    if (submissionError) {
+      setSubmissionError('');
+    }
+
+    if (successMessage) {
+      setSuccessMessage('');
     }
   };
 
   const validateForm = () => {
-    const newErrors = {
-      fullName: '',
-      email: '',
-      subject: '',
-      message: ''
-    };
-    
-    let isValid = true;
-    
-    // Full Name validation
+    const nextErrors = createEmptyErrors();
+    let isFormValid = true;
+
     if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
-      isValid = false;
+      nextErrors.fullName = 'Full name is required';
+      isFormValid = false;
     }
-    
-    // Email validation
+
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-      isValid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-      isValid = false;
+      nextErrors.email = 'Email is required';
+      isFormValid = false;
+    } else if (!isValidEmail(formData.email.trim())) {
+      nextErrors.email = 'Please enter a valid email address';
+      isFormValid = false;
     }
-    
-    // Subject validation
+
     if (!formData.subject) {
-      newErrors.subject = 'Please select a subject';
-      isValid = false;
+      nextErrors.subject = 'Please select a subject';
+      isFormValid = false;
     }
-    
-    // Message validation
+
     if (!formData.message.trim()) {
-      newErrors.message = 'Message is required';
-      isValid = false;
+      nextErrors.message = 'Message is required';
+      isFormValid = false;
     } else if (formData.message.trim().length < 10) {
-      newErrors.message = 'Message must be at least 10 characters';
-      isValid = false;
+      nextErrors.message = 'Message must be at least 10 characters';
+      isFormValid = false;
     }
-    
-    setErrors(newErrors);
-    return isValid;
+
+    setErrors(nextErrors);
+    return isFormValid;
   };
 
-  const handleSubmit = async () => {
-    // Validate form
+  const resetFormAfterSubmit = () => {
+    setFormData((currentValue) => ({
+      fullName: isSignedInUser ? user?.name || '' : '',
+      email: isSignedInUser ? user?.email || '' : '',
+      subject: '',
+      message: '',
+      ...(!isSignedInUser
+        ? {}
+        : {
+            fullName: user?.name || '',
+            email: user?.email || '',
+          }),
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setShowNotification(true);
-    setIsSubmitting(false);
-    
-    // Reset form
-    setFormData({
-      fullName: '',
-      email: '',
-      subject: '',
-      message: ''
-    });
-    
-    // Hide notification after 5 seconds
-    setTimeout(() => {
-      setShowNotification(false);
-    }, 5000);
+    setSubmissionError('');
+    setSuccessMessage('');
+
+    try {
+      await supportApi.createConversation({
+        name: formData.fullName.trim(),
+        email: formData.email.trim(),
+        subject: selectedSubject?.label || formData.subject,
+        category: selectedSubject?.category || 'general',
+        priority: 'medium',
+        message: formData.message.trim(),
+      });
+
+      setErrors(createEmptyErrors());
+      resetFormAfterSubmit();
+      setSuccessMessage('Your message has been sent successfully. Our team usually replies within 24 hours.');
+    } catch (error) {
+      setSubmissionError(getApiErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 ">
-      <div className="max-w-2xl mx-auto mb-10">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Contact Us</h1>
-          <p className="text-gray-600">Need help or have a question? We're here for you.</p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto mb-10 max-w-2xl">
+        <div className="mb-8 text-center">
+          <h1 className="mb-2 text-3xl font-bold text-gray-900">Contact Us</h1>
+          <p className="text-gray-600">Need help or have a question? We&apos;re here for you.</p>
         </div>
 
-        {/* Form Card */}
-        <div className="bg-white rounded-lg shadow-md p-8 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Send Us a Message</h2>
-          <p className="text-gray-600 text-sm mb-6">Fill out the form below and we'll get back to you soon</p>
+        <div className="mb-6 rounded-lg bg-white p-8 shadow-md">
+          <h2 className="mb-2 text-xl font-semibold text-gray-900">Send Us a Message</h2>
+          <p className="mb-6 text-sm text-gray-600">
+            Fill out the form below and we&apos;ll get back to you soon.
+          </p>
 
-          <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Full Name */}
+          {isSignedInUser ? (
+            <div className="mb-6 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+              You&apos;re signed in as {user?.name || 'a user'}. We&apos;ll send this message with
+              your account details.
+            </div>
+          ) : null}
+
+          {submissionError ? (
+            <div className="mb-6 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {submissionError}
+            </div>
+          ) : null}
+
+          {successMessage ? (
+            <div className="mb-6 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+              {successMessage}
+            </div>
+          ) : null}
+
+          <form onSubmit={handleSubmit}>
+            <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
-                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="fullName" className="mb-2 block text-sm font-medium text-gray-700">
                   Full Name *
                 </label>
                 <input
@@ -138,18 +209,18 @@ const page = () => {
                   value={formData.fullName}
                   onChange={handleChange}
                   placeholder="Enter your full name"
-                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition ${
+                  disabled={isSubmitting || isSignedInUser}
+                  className={`w-full rounded-md border px-4 py-2 outline-none transition focus:border-transparent focus:ring-2 focus:ring-green-500 ${
                     errors.fullName ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  } ${isSignedInUser ? 'cursor-not-allowed bg-gray-100 text-gray-500' : ''}`}
                 />
-                {errors.fullName && (
+                {errors.fullName ? (
                   <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
-                )}
+                ) : null}
               </div>
 
-              {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-700">
                   Email *
                 </label>
                 <input
@@ -159,18 +230,19 @@ const page = () => {
                   value={formData.email}
                   onChange={handleChange}
                   placeholder="Enter your email"
-                  className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition ${
+                  disabled={isSubmitting || isSignedInUser}
+                  className={`w-full rounded-md border px-4 py-2 outline-none transition focus:border-transparent focus:ring-2 focus:ring-green-500 ${
                     errors.email ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  } ${isSignedInUser ? 'cursor-not-allowed bg-gray-100 text-gray-500' : ''}`}
                 />
-                {errors.email && (
+                {errors.email ? (
                   <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                )}
+                ) : null}
               </div>
             </div>
 
             <div className="mb-6">
-              <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="subject" className="mb-2 block text-sm font-medium text-gray-700">
                 Subject *
               </label>
               <select
@@ -178,25 +250,25 @@ const page = () => {
                 name="subject"
                 value={formData.subject}
                 onChange={handleChange}
-                className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition bg-white ${
+                disabled={isSubmitting}
+                className={`w-full rounded-md border bg-white px-4 py-2 outline-none transition focus:border-transparent focus:ring-2 focus:ring-green-500 ${
                   errors.subject ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
                 <option value="">Select a subject</option>
-                <option value="general">General Inquiry</option>
-                <option value="support">Technical Support</option>
-                <option value="sales">Sales</option>
-                <option value="feedback">Feedback</option>
-                <option value="other">Other</option>
+                {CONTACT_SUBJECT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
-              {errors.subject && (
+              {errors.subject ? (
                 <p className="mt-1 text-sm text-red-600">{errors.subject}</p>
-              )}
+              ) : null}
             </div>
 
-            {/* Message */}
             <div className="mb-6">
-              <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="message" className="mb-2 block text-sm font-medium text-gray-700">
                 Message *
               </label>
               <textarea
@@ -206,58 +278,49 @@ const page = () => {
                 onChange={handleChange}
                 rows="5"
                 placeholder="Tell us how we can help you..."
-                className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition resize-none ${
+                disabled={isSubmitting}
+                className={`w-full resize-none rounded-md border px-4 py-2 outline-none transition focus:border-transparent focus:ring-2 focus:ring-green-500 ${
                   errors.message ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
-              {errors.message && (
+              {errors.message ? (
                 <p className="mt-1 text-sm text-red-600">{errors.message}</p>
-              )}
+              ) : null}
             </div>
 
-            {/* Submit Button */}
             <div className="text-center">
               <button
-                onClick={handleSubmit}
+                type="submit"
                 disabled={isSubmitting}
-                className="bg-green-800 hover:bg-green-900 text-white font-medium px-8 py-3 rounded-md transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center rounded-md bg-green-800 px-8 py-3 font-medium text-white transition duration-200 hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isSubmitting ? 'Sending...' : 'Send Message'}
+                {isSubmitting ? (
+                  <>
+                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Message'
+                )}
               </button>
             </div>
-          </div>
-
-          {/* Notification */}
-          {showNotification && (
-            <div className="mt-6 bg-green-50 border border-green-200 rounded-md p-4 flex items-center justify-center">
-              <div className="flex items-center">
-                <div className="bg-green-500 rounded-full p-1 mr-3">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <p className="text-green-800 font-medium">We usually respond within 24 hours.</p>
-              </div>
-            </div>
-          )}
+          </form>
         </div>
 
-        {/* Contact Info */}
         <div className="grid grid-cols-1 gap-6">
-          {/* Email Us */}
-          <div className="bg-white rounded-lg shadow-md p-6 text-center">
-            <div className="bg-gray-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-6 h-6 text-gray-700" />
+          <div className="rounded-lg bg-white p-6 text-center shadow-md">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+              <Mail className="h-6 w-6 text-gray-700" />
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">Email Us</h3>
-            <p className="text-green-700 font-medium mb-1">support@vardcare.com</p>
-            <p className="text-gray-500 text-sm">We'll respond within 24 hours</p>
+            <h3 className="mb-2 font-semibold text-gray-900">Email Us</h3>
+            <p className="mb-1 font-medium text-green-700">support@vardcare.com</p>
+            <p className="text-sm text-gray-500">We&apos;ll respond within 24 hours</p>
           </div>
         </div>
       </div>
-      <Banner/>
+      <Banner />
     </div>
   );
-}
+};
 
-export default page;
+export default ContactPage;
