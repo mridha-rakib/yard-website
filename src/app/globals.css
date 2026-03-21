@@ -185,9 +185,10 @@
   max-width: none;
   margin: 0;
   color: #25342c;
-  font-size: 0.96rem;
+  font-size: 1rem;
   line-height: 1.9;
-  letter-spacing: 0;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
 }
 
 .legal-document-content div,
@@ -198,6 +199,8 @@
 .legal-document-content p {
   width: 100% !important;
   max-width: none !important;
+  min-height: 0 !important;
+  max-height: none !important;
 }
 
 .legal-document-content > :first-child {
@@ -206,6 +209,17 @@
 
 .legal-document-content section + section {
   margin-top: 1.5rem;
+}
+
+.legal-document-page[data-legal-layout="document"] .legal-document-content > section {
+  margin-top: 0;
+  padding: 1.6rem 0;
+  border-top: 1px solid #e7eee8;
+}
+
+.legal-document-page[data-legal-layout="document"] .legal-document-content > section:first-child {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .legal-document-content h1,
@@ -225,11 +239,11 @@
 }
 
 .legal-document-content h2 {
-  font-size: 1.02rem;
+  font-size: 1.45rem;
 }
 
 .legal-document-content h3 {
-  font-size: 0.95rem;
+  font-size: 1.08rem;
 }
 
 .legal-document-content h4 {
@@ -276,6 +290,8 @@
 .legal-document-content blockquote {
   background: #e8f5e9;
   padding: 0.9rem 1rem;
+  border: 1px solid #d7e7d8;
+  border-radius: 1rem;
   color: #23553c;
   font-size: 0.93rem;
   line-height: 1.75;
@@ -291,6 +307,9 @@
   width: 100%;
   border-collapse: collapse;
   background: #fcfefd;
+  border: 1px solid #e3ebe5;
+  border-radius: 1rem;
+  overflow: hidden;
 }
 
 .legal-document-content th,

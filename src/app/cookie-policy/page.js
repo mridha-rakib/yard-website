@@ -1,5 +1,5 @@
-import LegalDocumentPage from "@/components/legal/LegalDocumentPage";
+import CookiePolicyPageContent from "@/components/legal/CookiePolicyPageContent";
 
 export default function CookiePolicyPage() {
-  return <LegalDocumentPage documentId="cookie-policy" />;
+  return <CookiePolicyPageContent />;
 }

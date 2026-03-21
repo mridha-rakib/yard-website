@@ -40,18 +40,7 @@ export const sanitizeLegalDocumentHtml = (value = "") =>
     .replace(/<iframe[\s\S]*?<\/iframe>/gi, "")
     .replace(/<object[\s\S]*?<\/object>/gi, "")
     .replace(/<embed[\s\S]*?<\/embed>/gi, "")
-    .replace(
-      /\sstyle=(["'])(.*?)\1/gi,
-      (_, quote, styleValue = "") => {
-        const cleanedStyle = String(styleValue)
-          .replace(/(^|;)\s*(max-width|min-width|width)\s*:[^;]+;?/gi, "$1")
-          .replace(/;;+/g, ";")
-          .replace(/^;|;$/g, "")
-          .trim();
-
-        return cleanedStyle ? ` style=${quote}${cleanedStyle}${quote}` : "";
-      }
-    )
+    .replace(/\sstyle=(["'])[\s\S]*?\1/gi, "")
     .replace(/\son\w+=(["']).*?\1/gi, "")
     .replace(/\son\w+=([^\s>]+)/gi, "")
     .replace(/javascript:/gi, "");

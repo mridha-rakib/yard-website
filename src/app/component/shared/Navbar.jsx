@@ -226,6 +226,7 @@ export default function Navbar() {
       ]
     : [];
   const canBecomeWorker = hasRole(user, ROLES.CUSTOMER) && !hasRole(user, ROLES.WORKER);
+  const activeRole = user?.role || "";
 
   const closeMenus = () => {
     setAccountMenuOpen(false);
@@ -257,7 +258,7 @@ export default function Navbar() {
         setIsLoadingNotifications(false);
       }
     }
-  }, [isAuthenticated, user?._id]);
+  }, [activeRole, isAuthenticated, user?._id]);
 
   const handleLogout = async () => {
     closeMenus();
@@ -381,6 +382,11 @@ export default function Navbar() {
   }, [accountMenuOpen, notificationsOpen]);
 
   useEffect(() => {
+    setNotifications([]);
+    setNotificationsCount(0);
+  }, [activeRole, isAuthenticated, user?._id]);
+
+  useEffect(() => {
     if (!isAuthenticated || !user?._id) {
       setNotifications([]);
       setNotificationsCount(0);
@@ -394,7 +400,7 @@ export default function Navbar() {
     }, 30000);
 
     return () => window.clearInterval(intervalId);
-  }, [isAuthenticated, user?._id, loadNotifications]);
+  }, [activeRole, isAuthenticated, user?._id, loadNotifications]);
 
   return (
     <nav className="w-full bg-white border-b border-gray-200">

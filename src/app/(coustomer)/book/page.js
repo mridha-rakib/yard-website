@@ -435,7 +435,7 @@ function BookYardWorkFormContent() {
                       </p>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         City *
@@ -548,7 +548,7 @@ function BookYardWorkFormContent() {
                       </label>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Preferred Date
@@ -609,7 +609,7 @@ function BookYardWorkFormContent() {
                 </div>
 
                 {uploadedPhotos.length > 0 && (
-                  <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
                     {uploadedPhotos.map((photo) => (
                       <div key={photo.id} className="relative group">
                         <img
@@ -636,7 +636,7 @@ function BookYardWorkFormContent() {
 
           {/* Price Estimate Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
+            <div className="bg-white rounded-lg p-6 shadow-sm lg:sticky lg:top-4">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
                 Price Estimate
               </h2>

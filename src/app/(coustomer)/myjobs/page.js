@@ -139,7 +139,7 @@ function JobCard({ job }) {
         </div>
 
         <div className="flex flex-col items-start gap-4 md:items-end">
-          <div className="rounded-2xl border border-[#e1e8e3] bg-[#fbfdfb] px-5 py-4 md:min-w-[170px]">
+          <div className="w-full rounded-2xl border border-[#e1e8e3] bg-[#fbfdfb] px-5 py-4 md:w-auto md:min-w-[170px]">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7280]">
               Total
             </p>

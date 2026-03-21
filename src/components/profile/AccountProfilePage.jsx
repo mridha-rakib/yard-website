@@ -148,7 +148,7 @@ function TimeSelectField({ label, value, onChange }) {
   return (
     <div className="text-sm font-medium text-[#334155]">
       <span>{label}</span>
-      <div className="mt-2 grid grid-cols-[1fr_1fr_0.9fr] gap-2">
+      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_0.9fr]">
         <select
           value={value.hour}
           onChange={(event) => onChange("hour", event.target.value)}

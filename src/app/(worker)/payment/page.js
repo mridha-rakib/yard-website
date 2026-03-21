@@ -203,7 +203,7 @@ export default function WorkerPaymentsPage() {
           }}
           className="rounded-xl p-6 text-white shadow-lg"
         >
-          <div className="mb-6 flex items-start justify-between gap-6">
+          <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h3 className="mb-1 text-lg font-semibold">
                 You keep {keepPercentage}% of every job
@@ -212,13 +212,13 @@ export default function WorkerPaymentsPage() {
                 Platform fees are deducted automatically before your payout is released.
               </p>
             </div>
-            <div className="flex h-24 w-36 flex-col items-center justify-center rounded-full border-2 border-[#5a7465] bg-[#335340] text-right md:h-48 md:w-48">
-              <p className="text-sm font-bold md:text-5xl">{keepPercentage}%</p>
+            <div className="flex h-28 w-28 shrink-0 flex-col items-center justify-center self-start rounded-full border-2 border-[#5a7465] bg-[#335340] text-center sm:h-36 sm:w-36 md:h-48 md:w-48">
+              <p className="text-2xl font-bold sm:text-3xl md:text-5xl">{keepPercentage}%</p>
               <p className="mt-1 text-sm text-emerald-200">Your earnings</p>
             </div>
           </div>
 
-          <div className="w-full rounded-lg bg-[#335340] p-4 md:w-1/2">
+          <div className="w-full rounded-lg bg-[#335340] p-4 sm:max-w-md">
             <p className="text-sm text-emerald-100">
               {payments.length ? "Latest breakdown:" : "Sample breakdown:"}
             </p>
@@ -250,7 +250,7 @@ export default function WorkerPaymentsPage() {
             profile settings.
           </p>
 
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {paymentMethods.map((method) => (
               <div
                 key={method.name}

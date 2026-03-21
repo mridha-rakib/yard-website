@@ -241,13 +241,13 @@ function BookingSuccessScreen({ payment, job }) {
           <div className="mt-7 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
               href="/myjobs"
-              className="inline-flex min-w-[168px] items-center justify-center rounded-md bg-[#143f22] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0f311b]"
+              className="inline-flex w-full items-center justify-center rounded-md bg-[#143f22] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0f311b] sm:w-auto sm:min-w-[168px]"
             >
               View My Jobs
             </Link>
             <Link
               href="/book"
-              className="inline-flex min-w-[168px] items-center justify-center rounded-md border border-[#143f22] bg-white px-6 py-3 text-sm font-semibold text-[#143f22] transition-colors hover:bg-[#f7faf8]"
+              className="inline-flex w-full items-center justify-center rounded-md border border-[#143f22] bg-white px-6 py-3 text-sm font-semibold text-[#143f22] transition-colors hover:bg-[#f7faf8] sm:w-auto sm:min-w-[168px]"
             >
               Book Another Job
             </Link>
