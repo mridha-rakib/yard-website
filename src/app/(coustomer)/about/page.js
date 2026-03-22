@@ -3,17 +3,18 @@ import Banner from "@/app/component/Banner";
 import {
   BriefcaseBusiness,
   Check,
-  FileText,
+  DollarSign,
+  FileCheck,
   House,
   MapPin,
-  Users,
-  Wallet,
+  UsersRound,
 } from "lucide-react";
 
 const storyParagraphs = [
-  "What started as a small family restaurant has grown into a beloved community hub. Our journey began with a simple vision: to bring people together over delicious, home-cooked meals that remind them of family gatherings and special moments.",
-  "Over the years, we've stayed true to our roots while embracing innovation. We source ingredients from local farms, support sustainable practices, and create an atmosphere where everyone feels welcome. Our team has grown from a handful of passionate individuals to a dedicated family of culinary professionals.",
-  "Today, we continue to serve our community with the same love and dedication that started it all. Every dish tells a story, and every guest becomes part of our extended family.",
+  "We started with a simple observation: elders and busy homeowners often struggle to find quick, reliable help for yard work. Whether it's mowing the lawn, raking leaves, or trimming hedges, finding trustworthy workers can be stressful and time-consuming.",
+  "At the same time, many young people in our communities want honest, flexible work that fits their schedules. They're eager to earn money, build skills, and help their neighbors.",
+  "That's why we created this platform. We connect both sides safely and simply, making yard work accessible for everyone while creating real earning opportunities for hardworking young people.",
+  "Our platform is built on trust, transparency, and community. We believe in fair pay, clear communication, and making life easier for everyone involved.",
 ];
 
 const HomeownersMissionIcon = () => (
@@ -66,26 +67,26 @@ const missionItems = [
 
 const helpItems = [
   {
-    title: "Homeowners & Sellers",
+    title: "Homeowners & Elders",
     description:
-      "We cater to all your event and party planning needs with customized menus and professional service.",
+      "Get reliable help with your yard work without the hassle. Our platform makes it easy to book trusted local workers.",
     bullets: [
-      "Private dining experiences",
-      "Corporate event catering",
-      "Wedding and celebration menus",
-      "Custom menu planning",
+      "Reliable help when you need it",
+      "Easy booking in just a few clicks",
+      "Pay only after job completion",
+      "Vetted local workers you can trust",
     ],
     Icon: House,
   },
   {
     title: "Workers",
     description:
-      "Individuals and corporate teams looking for great food and a comfortable dining environment.",
+      "Find flexible yard work jobs in your area and earn money on your own schedule. It's simple, safe, and rewarding.",
     bullets: [
-      "Business lunch specials",
-      "Group dining packages",
-      "Quick service options",
-      "Meeting room availability",
+      "Flexible jobs that fit your schedule",
+      "Fast payouts after each job",
+      "Keep 88% of your earnings",
+      "Build your reputation and skills",
     ],
     Icon: BriefcaseBusiness,
   },
@@ -93,24 +94,36 @@ const helpItems = [
 
 const reasonItems = [
   {
-    title: "Local Heroes",
+    title: "Local Workers",
     description: "Connect with trusted workers in your neighborhood",
     Icon: MapPin,
+    titleClassName: "max-w-[156px]",
+    descriptionClassName: "max-w-[156px]",
+    iconClassName: "h-9 w-9",
   },
   {
     title: "No Long Contracts",
     description: "Book jobs as needed with no commitments",
-    Icon: FileText,
+    Icon: FileCheck,
+    titleClassName: "max-w-[188px]",
+    descriptionClassName: "max-w-[188px]",
+    iconClassName: "h-9 w-9",
   },
   {
     title: "Clear Pricing",
     description: "Transparent rates with no hidden fees",
-    Icon: Wallet,
+    Icon: DollarSign,
+    titleClassName: "max-w-[186px]",
+    descriptionClassName: "max-w-[186px]",
+    iconClassName: "h-8 w-8",
   },
   {
     title: "Community-Focused",
     description: "Built to strengthen local communities",
-    Icon: Users,
+    Icon: UsersRound,
+    titleClassName: "max-w-[202px]",
+    descriptionClassName: "max-w-[172px]",
+    iconClassName: "h-10 w-10",
   },
 ];
 
@@ -238,23 +251,39 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="px-4 pb-10 pt-10 sm:px-6 sm:pb-14 sm:pt-14 lg:px-8 lg:pb-20 lg:pt-20">
-        <div className="mx-auto max-w-7xl rounded-[36px] border border-[#dbe7db] bg-[linear-gradient(180deg,#ffffff_0%,#eef5ea_100%)] px-6 py-12 sm:px-10 lg:px-12 lg:py-16">
-          <h2 className="text-center text-3xl font-semibold tracking-[-0.03em] text-[#202326] sm:text-4xl">
+      <section className="bg-white px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-center text-[36px] font-bold leading-10 tracking-[-0.005em] text-[#202326]">
             Why Choose Us
           </h2>
 
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-            {reasonItems.map(({ title, description, Icon }) => (
+          <div className="mt-16 grid gap-y-12 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-4">
+            {reasonItems.map(
+              ({
+                title,
+                description,
+                Icon,
+                titleClassName,
+                descriptionClassName,
+                iconClassName,
+              }) => (
               <div
                 key={title}
-                className="rounded-[28px] border border-[#dbe7db] bg-white/85 p-7"
+                className="mx-auto flex w-full max-w-[216px] flex-col items-center px-[7px] text-center"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0A3019] text-white">
-                  <Icon className="h-7 w-7" />
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[rgba(10,48,25,0.1)] text-[#0A3019]">
+                  <Icon className={iconClassName} strokeWidth={2.2} />
                 </div>
-                <h3 className="mt-6 text-xl font-semibold text-[#202326]">{title}</h3>
-                <p className="mt-3 leading-7 text-[#4b5563]">{description}</p>
+                <h3
+                  className={`mt-[14px] text-[20px] font-semibold leading-[33px] tracking-[-0.005em] text-[#202326] ${titleClassName}`}
+                >
+                  {title}
+                </h3>
+                <p
+                  className={`mt-[14px] text-base leading-[26px] tracking-[-0.5px] text-[#4b5563] ${descriptionClassName}`}
+                >
+                  {description}
+                </p>
               </div>
             ))}
           </div>
