@@ -44,7 +44,7 @@ const supportCategories = [
   { value: "general", label: "General" },
   { value: "booking", label: "Booking" },
   { value: "payment", label: "Payment" },
-  { value: "worker", label: "Worker" },
+  { value: "worker", label: "Hero" },
   { value: "account", label: "Account" },
   { value: "safety", label: "Safety" },
 ];
@@ -64,7 +64,7 @@ const supportStatusConfig = {
 
 const paymentStatusConfig = {
   paid: { label: "Paid", badgeClassName: "bg-[#dcfce7] text-[#166534]" },
-  authorized: { label: "Authorized", badgeClassName: "bg-[#dbeafe] text-[#1d4ed8]" },
+  authorized: { label: "Secure Hold", badgeClassName: "bg-[#dbeafe] text-[#1d4ed8]" },
   pending: { label: "Pending", badgeClassName: "bg-[#fff7d6] text-[#a16207]" },
   failed: { label: "Failed", badgeClassName: "bg-[#fee2e2] text-[#b91c1c]" },
   cancelled: { label: "Cancelled", badgeClassName: "bg-[#e5e7eb] text-[#4b5563]" },
@@ -697,7 +697,7 @@ export default function CustomerProfilePage() {
           <StatCard
             label="Active Jobs"
             value={stats.activeJobs}
-            detail="Requests currently waiting, assigned, or in progress."
+            detail="Requests currently waiting, accepted, or in progress."
             toneClassName="bg-[#edf3ff] text-[#1d4ed8]"
           />
           <StatCard
@@ -1196,7 +1196,7 @@ export default function CustomerProfilePage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="rounded-[20px] border border-[#e1e8e3] bg-[#fbfdfb] px-4 py-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7280]">
-                        Authorized / Pending
+                        Secure Hold / Pending
                       </p>
                       <p className="mt-3 text-2xl font-bold text-[#10231a]">
                         {formatCurrency(paymentSummary.pendingPaymentTotal)}

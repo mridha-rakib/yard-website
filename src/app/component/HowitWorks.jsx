@@ -130,7 +130,7 @@ const HowItWorks = () => {
         </svg>
       ),
       title: "Work Flexible",
-      description: "Work when you want. Choose jobs that fit your schedule",
+      description: "Work when you want. Choose jobs that fit your availability",
     },
     {
       icon: (
@@ -365,7 +365,7 @@ const HowItWorks = () => {
 
             <div className="bg-[#f0fdf4] py-5 px-20">
               <p className="text-lg font-semibold text-[#4B5563]">
-                Only 12% platform fee. That's it!
+                Only 12% platform fee. That&apos;s it!
               </p>
             </div>
           </div>

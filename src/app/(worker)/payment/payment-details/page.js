@@ -29,10 +29,10 @@ import {
   getPaymentIdLabel,
   getPaymentMethodLabel,
   getPaymentStatusDetails,
-  getWorkerInitials,
+  getHeroInitials,
 } from "@/lib/worker-payments";
 
-function WorkerPaymentDetailsFallback() {
+function HeroPaymentDetailsFallback() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10">
       <div className="flex items-center gap-3 text-sm text-gray-600">
@@ -43,7 +43,7 @@ function WorkerPaymentDetailsFallback() {
   );
 }
 
-function WorkerPaymentDetailsPageContent() {
+function HeroPaymentDetailsPageContent() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -102,8 +102,8 @@ function WorkerPaymentDetailsPageContent() {
 
   const summary = useMemo(() => getPaymentDetailSummary(payment || {}), [payment]);
   const statusDetails = getPaymentStatusDetails(payment?.status);
-  const workerName = payment?.worker?.name || "Unassigned";
-  const workerInitials = getWorkerInitials(workerName);
+  const workerName = payment?.worker?.name || "No Hero connected";
+  const workerInitials = getHeroInitials(workerName);
   const paymentDate = getPaymentDate(payment || {});
   const completedDate = getCompletedDate(payment || {});
   const detailIdLabel = getPaymentIdLabel(payment || {});
@@ -301,14 +301,14 @@ function WorkerPaymentDetailsPageContent() {
               {payment.status === "paid"
                 ? "Payment successfully processed"
                 : payment.status === "authorized"
-                  ? "Payment is being processed"
+                  ? "Customer payment is in secure hold"
                   : "Payment status updated"}
             </p>
             <p className="mt-1 text-sm text-emerald-700">
               {payment.status === "paid"
                 ? "Your earnings are recorded as available balance."
                 : payment.status === "authorized"
-                  ? "The customer payment is authorized and your payout is moving through processing."
+                  ? "The customer payment is secured and will be released after YardHero approves the completion proof."
                   : "Check the status label above for the current payout state."}
             </p>
           </div>
@@ -342,7 +342,7 @@ function WorkerPaymentDetailsPageContent() {
             <div className="flex items-start gap-3">
               <User className="mt-0.5 h-5 w-5 text-gray-400" />
               <div>
-                <p className="text-sm text-gray-500">Worker</p>
+                <p className="text-sm text-gray-500">Hero</p>
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-sm font-semibold text-white">
                     {workerInitials}
@@ -350,7 +350,7 @@ function WorkerPaymentDetailsPageContent() {
                   <div>
                     <p className="font-medium text-gray-900">{workerName}</p>
                     <p className="text-sm text-gray-500">
-                      {payment.worker?.email || "No worker email available"}
+                      {payment.worker?.email || "No Hero email available"}
                     </p>
                   </div>
                 </div>
@@ -395,10 +395,10 @@ function WorkerPaymentDetailsPageContent() {
   );
 }
 
-export default function WorkerPaymentDetailsPage() {
+export default function HeroPaymentDetailsPage() {
   return (
-    <Suspense fallback={<WorkerPaymentDetailsFallback />}>
-      <WorkerPaymentDetailsPageContent />
+    <Suspense fallback={<HeroPaymentDetailsFallback />}>
+      <HeroPaymentDetailsPageContent />
     </Suspense>
   );
 }

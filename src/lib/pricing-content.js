@@ -1,7 +1,18 @@
 export const PRICING_CONTENT_KEY = "pricing-services";
 
+const roundMoney = (value) =>
+  Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+
+const roundMeasurement = (value) =>
+  Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+
+const toPositiveNumber = (value) => {
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : 0;
+};
+
 const createService = (service) => ({
-  id: service.id || `${service.title || "service"}-${Math.random().toString(36).slice(2, 8)}`,
+  id: service.id,
   icon: service.icon || "sparkles",
   title: service.title || "",
   price: Number.isFinite(Number(service.price)) ? Number(service.price) : 0,
@@ -9,316 +20,481 @@ const createService = (service) => ({
   description: service.description || "",
   buttonText: service.buttonText || "Book Service",
   buttonVariant: service.buttonVariant === "secondary" ? "secondary" : "primary",
+  pricingType: service.pricingType || "fixed",
+  minimumPrice: Number(service.minimumPrice || 0),
+  unitRate: Number(service.unitRate || 0),
+  fixedPrice: Number(service.fixedPrice || 0),
+  minimumYards: Number(service.minimumYards || 0),
+  defaultDepthIn: Number(service.defaultDepthIn || 0),
+  pricingSummary: service.pricingSummary || "",
+  pricingNote: service.pricingNote || "",
+  requiresSqft: Boolean(service.requiresSqft),
+  allowUnknownSqft: Boolean(service.allowUnknownSqft),
 });
+
+const withPrice = (service) => {
+  const startingPrice =
+    service.pricingType === "fixed"
+      ? Number(service.fixedPrice || 0)
+      : Number(service.minimumPrice || 0);
+
+  return createService({
+    ...service,
+    price: startingPrice,
+  });
+};
 
 export const DEFAULT_PRICING_CATEGORIES = [
   {
     id: "yard",
-    label: "Yard & Outdoor",
-    title: "Yard & Outdoor Jobs",
-    subtitle: "Professional outdoor maintenance & cleanup services",
+    label: "Yard and Outdoor",
+    title: "Yard and Outdoor Jobs",
+    subtitle: "Fixed rules, clear pricing, and no negotiation at booking time.",
     services: [
-      {
+      withPrice({
         id: "yard-lawn-mowing",
         icon: "leaf",
         title: "Lawn Mowing",
-        price: 40,
         duration: "30-60 min",
-        description:
-          "Lawn mowing with edging and light cleanup to keep your yard neat and healthy.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Automatic pricing based on square footage with a $40 minimum.",
+        pricingType: "sqft",
+        minimumPrice: 40,
+        unitRate: 0.032,
+        pricingSummary: "$40 minimum or $0.032 per sq ft",
+        pricingNote: "Small lawns stay affordable while larger lawns are priced fairly.",
+        requiresSqft: true,
+      }),
+      withPrice({
         id: "yard-weed-removal",
         icon: "wind",
         title: "Weed Removal",
-        price: 35,
         duration: "45-90 min",
-        description: "Manual weed removal from lawns, garden beds, and walkways.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Square-foot pricing with a $65 minimum for fair labor coverage.",
+        pricingType: "sqft",
+        minimumPrice: 65,
+        unitRate: 0.07,
+        pricingSummary: "$65 minimum or $0.07 per sq ft",
+        pricingNote: "Use the size of the area you want cleared.",
+        requiresSqft: true,
+      }),
+      withPrice({
         id: "yard-leaf-cleanup",
         icon: "wind",
-        title: "Leaf Blowing & Cleanup",
-        price: 45,
+        title: "Leaf Blowing and Cleanup",
         duration: "1-2 hours",
-        description:
-          "Leaf blowing and full cleanup from lawns, patios, and driveways.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Square-foot pricing with a $45 minimum for clean, transparent quoting.",
+        pricingType: "sqft",
+        minimumPrice: 45,
+        unitRate: 0.04,
+        pricingSummary: "$45 minimum or $0.04 per sq ft",
+        pricingNote: "Final price is whichever is higher.",
+        requiresSqft: true,
+      }),
+      withPrice({
         id: "yard-general-cleanup",
         icon: "sparkles",
         title: "Yard Cleanup (General)",
-        price: 75,
         duration: "2-3 hours",
-        description:
-          "Complete yard cleanup including debris removal and surface clearing.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "General cleanup priced from yard size with a $75 minimum.",
+        pricingType: "sqft",
+        minimumPrice: 75,
+        unitRate: 0.05,
+        pricingSummary: "$75 minimum or $0.05 per sq ft",
+        pricingNote: "Best for full-property cleanup jobs.",
+        requiresSqft: true,
+      }),
+      withPrice({
         id: "yard-hedge-trimming",
         icon: "scissors",
         title: "Hedge Trimming",
-        price: 50,
         duration: "1-2 hours",
-        description: "Professional hedge trimming with shaping and debris removal.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Pricing is based on the job footprint with a $60 minimum.",
+        pricingType: "sqft",
+        minimumPrice: 60,
+        unitRate: 0.04,
+        pricingSummary: "$60 minimum or $0.04 per sq ft",
+        pricingNote: "Use the total work area around the hedges.",
+        requiresSqft: true,
+      }),
+      withPrice({
         id: "yard-bush-trimming",
         icon: "scissors",
-        title: "Bush & Shrub Trimming",
-        price: 45,
+        title: "Bush and Shrub Trimming",
         duration: "1-2 hours",
-        description: "Trimming bushes and shrubs to enhance yard appearance.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Flat-rate trimming for quick and predictable booking.",
+        pricingType: "fixed",
+        fixedPrice: 55,
+        pricingSummary: "$55 fixed price",
+        pricingNote: "No square footage needed for this service.",
+      }),
+      withPrice({
         id: "yard-garden-bed-cleanup",
         icon: "leaf",
         title: "Garden Bed Cleanup",
-        price: 60,
         duration: "1-2 hours",
-        description:
-          "Cleaning garden beds, removing weeds, leaves, and debris.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Garden bed cleanup priced from the area being serviced.",
+        pricingType: "sqft",
+        minimumPrice: 75,
+        unitRate: 0.05,
+        pricingSummary: "$75 minimum or $0.05 per sq ft",
+        pricingNote: "Use the combined square footage of the beds.",
+        requiresSqft: true,
+      }),
+      withPrice({
         id: "yard-mulching",
         icon: "droplets",
         title: "Mulching",
-        price: 80,
         duration: "2-3 hours",
-        description:
-          "Mulch installation to protect soil and improve landscape look.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Calculated by cubic yards using square footage and depth with a 5-yard minimum.",
+        pricingType: "mulch",
+        minimumPrice: 600,
+        unitRate: 120,
+        minimumYards: 5,
+        defaultDepthIn: 3,
+        pricingSummary: "$600 minimum, then $120 per yard at depth",
+        pricingNote: "If you do not know the square footage, we default to the 5-yard minimum.",
+        allowUnknownSqft: true,
+      }),
+      withPrice({
         id: "yard-snow-shoveling",
         icon: "wind",
-        title: "Snow Shoveling (Seasonal)",
-        price: 35,
+        title: "Snow Shoveling",
         duration: "30-90 min",
-        description:
-          "Snow removal from driveways and walkways during winter.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Seasonal pricing by square footage with a $50 minimum.",
+        pricingType: "sqft",
+        minimumPrice: 50,
+        unitRate: 0.05,
+        pricingSummary: "$50 minimum or $0.05 per sq ft",
+        pricingNote: "Use the driveway and walkway area to be cleared.",
+        requiresSqft: true,
+      }),
+      withPrice({
         id: "yard-storm-cleanup",
         icon: "sparkles",
         title: "Storm Debris Cleanup",
-        price: 90,
         duration: "2-4 hours",
-        description: "Post-storm debris and fallen branch cleanup.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
+        description: "Post-storm cleanup priced from lot size with a $90 minimum.",
+        pricingType: "sqft",
+        minimumPrice: 90,
+        unitRate: 0.06,
+        pricingSummary: "$90 minimum or $0.06 per sq ft",
+        pricingNote: "Best for branches, debris, and storm mess.",
+        requiresSqft: true,
+      }),
     ],
   },
   {
     id: "pet",
-    label: "Pet & Property",
-    title: "Pet & Property Cleanup",
-    subtitle: "Clean, safe & hygienic outdoor environments",
+    label: "Pet and Property",
+    title: "Pet and Property Cleanup",
+    subtitle: "Safe, simple service pricing with transparent minimums.",
     services: [
-      {
+      withPrice({
         id: "pet-waste-removal",
         icon: "home",
         title: "Dog Poop / Pet Waste Removal",
-        price: 25,
         duration: "20-45 min",
-        description: "Removal of pet waste from yards to maintain hygiene.",
-        buttonText: "Book Now",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Priced from the service area with a $50 minimum.",
+        pricingType: "sqft",
+        minimumPrice: 50,
+        unitRate: 0.06,
+        pricingSummary: "$50 minimum or $0.06 per sq ft",
+        pricingNote: "Use the yard area that needs to be cleared.",
+        requiresSqft: true,
+      }),
+      withPrice({
         id: "pet-yard-sanitizing",
         icon: "droplets",
-        title: "Yard Sanitizing (Pet Areas)",
-        price: 40,
+        title: "Yard Sanitizing",
         duration: "45-60 min",
-        description: "Sanitizing pet areas to eliminate odor and bacteria.",
-        buttonText: "Book Now",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Flat-rate sanitizing for pet-heavy outdoor areas.",
+        pricingType: "fixed",
+        fixedPrice: 40,
+        pricingSummary: "$40 fixed price",
+        pricingNote: "No square footage needed for this service.",
+      }),
+      withPrice({
         id: "pet-litter-cleanup",
         icon: "sparkles",
-        title: "Litter Cleanup (Outdoor)",
-        price: 30,
+        title: "Litter Cleanup",
         duration: "30-60 min",
-        description: "Removal of trash and litter from outdoor areas.",
-        buttonText: "Book Now",
-        buttonVariant: "primary",
-      },
+        description: "Flat-rate cleanup for visible trash and litter.",
+        pricingType: "fixed",
+        fixedPrice: 40,
+        pricingSummary: "$40 fixed price",
+        pricingNote: "No square footage needed for this service.",
+      }),
     ],
   },
   {
     id: "vehicle",
     label: "Vehicle Services",
     title: "Vehicle Convenience Services",
-    subtitle: "On-demand vehicle care at your location",
+    subtitle: "Fast flat-rate add-on services at your location.",
     services: [
-      {
+      withPrice({
         id: "vehicle-gas-filling",
         icon: "car",
-        title: "Gas Filling (On-Site)",
-        price: 15,
+        title: "Gas Filling",
         duration: "15-20 min",
-        description: "Fuel delivery service (fuel cost not included).",
-        buttonText: "Request Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Flat-rate on-site gas fill support. Fuel cost is separate.",
+        pricingType: "fixed",
+        fixedPrice: 25,
+        pricingSummary: "$25 fixed price",
+        pricingNote: "Fuel cost is not included.",
+      }),
+      withPrice({
         id: "vehicle-washer-fluid",
         icon: "droplets",
         title: "Windshield Washer Fluid Refill",
-        price: 15,
         duration: "10-15 min",
-        description:
-          "Refill of windshield washer fluid for better visibility.",
-        buttonText: "Book Now",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Quick refill service to improve visibility and convenience.",
+        pricingType: "fixed",
+        fixedPrice: 15,
+        pricingSummary: "$15 fixed price",
+        pricingNote: "No size measurement needed.",
+      }),
+      withPrice({
         id: "vehicle-tire-air",
         icon: "wrench",
         title: "Tire Air Fill",
-        price: 15,
         duration: "10-20 min",
-        description: "Proper tire pressure check and air fill.",
-        buttonText: "Book Now",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Flat-rate tire pressure top-up.",
+        pricingType: "fixed",
+        fixedPrice: 10,
+        pricingSummary: "$10 fixed price",
+        pricingNote: "No size measurement needed.",
+      }),
+      withPrice({
         id: "vehicle-exterior-wash",
         icon: "car",
         title: "Car Exterior Wash",
-        price: 30,
         duration: "30-45 min",
-        description: "Exterior driveway car wash service.",
-        buttonText: "Book Now",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Flat-rate exterior wash at your location.",
+        pricingType: "fixed",
+        fixedPrice: 50,
+        pricingSummary: "$50 fixed price",
+        pricingNote: "No size measurement needed.",
+      }),
+      withPrice({
         id: "vehicle-interior-vacuuming",
         icon: "sparkles",
         title: "Interior Vacuuming",
-        price: 25,
         duration: "20-40 min",
-        description: "Interior vacuuming of seats, floors, and mats.",
-        buttonText: "Book Now",
-        buttonVariant: "primary",
-      },
+        description: "Flat-rate interior vacuum service for a standard vehicle.",
+        pricingType: "fixed",
+        fixedPrice: 40,
+        pricingSummary: "$40 fixed price",
+        pricingNote: "No size measurement needed.",
+      }),
     ],
   },
   {
     id: "home",
     label: "Home Exterior",
     title: "Home Exterior Tasks",
-    subtitle: "Maintain and refresh your home exterior",
+    subtitle: "Home services with either fixed pricing or size-based rules.",
     services: [
-      {
+      withPrice({
         id: "home-trash-bin-cleaning",
         icon: "sparkles",
-        title: "Trash Bin Cleaning & Disinfecting",
-        price: 25,
+        title: "Trash Bin Cleaning",
         duration: "20-30 min",
-        description: "Deep cleaning and disinfecting of trash bins.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Flat-rate cleaning and disinfecting.",
+        pricingType: "fixed",
+        fixedPrice: 25,
+        pricingSummary: "$25 fixed price",
+        pricingNote: "No size measurement needed.",
+      }),
+      withPrice({
         id: "home-pressure-washing",
         icon: "droplets",
         title: "Pressure Washing",
-        price: 80,
         duration: "1-2 hours",
-        description:
-          "Pressure washing for driveways, sidewalks, and patios.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Flat-rate booking for standard residential surfaces.",
+        pricingType: "fixed",
+        fixedPrice: 120,
+        pricingSummary: "$120 fixed price",
+        pricingNote: "No square footage needed for this service.",
+      }),
+      withPrice({
         id: "home-gutter-removal",
         icon: "wind",
         title: "Gutter Debris Removal",
-        price: 60,
         duration: "1-2 hours",
-        description:
-          "Ground-level gutter debris removal for smooth drainage.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Flat-rate gutter cleanup with predictable booking pricing.",
+        pricingType: "fixed",
+        fixedPrice: 120,
+        pricingSummary: "$120 fixed price",
+        pricingNote: "No square footage needed for this service.",
+      }),
+      withPrice({
         id: "home-window-washing",
         icon: "sparkles",
-        title: "Window Washing (Ground-Level)",
-        price: 40,
+        title: "Window Washing",
         duration: "1-2 hours",
-        description:
-          "Exterior window washing for ground-level windows.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
-      {
+        description: "Flat-rate window washing for exterior panes.",
+        pricingType: "fixed",
+        fixedPrice: 65,
+        pricingSummary: "$65 fixed price",
+        pricingNote: "No square footage needed for this service.",
+      }),
+      withPrice({
         id: "home-patio-sweeping",
         icon: "home",
-        title: "Patio & Deck Sweeping",
-        price: 35,
+        title: "Patio and Deck Sweeping",
         duration: "30-60 min",
-        description:
-          "Sweeping patios and decks for a clean outdoor space.",
-        buttonText: "Book Service",
-        buttonVariant: "primary",
-      },
+        description: "Area-based pricing with a $60 minimum.",
+        pricingType: "sqft",
+        minimumPrice: 60,
+        unitRate: 0.05,
+        pricingSummary: "$60 minimum or $0.05 per sq ft",
+        pricingNote: "Use the total patio or deck area to be swept.",
+        requiresSqft: true,
+      }),
     ],
   },
 ];
 
 const cloneCategory = (category) => ({
   ...category,
-  services: category.services.map(createService),
+  services: category.services.map((service) => createService(service)),
 });
 
-export const clonePricingCategories = () =>
-  DEFAULT_PRICING_CATEGORIES.map(cloneCategory);
+export const clonePricingCategories = () => DEFAULT_PRICING_CATEGORIES.map(cloneCategory);
 
-export const normalizePricingCategories = (inputCategories) => {
-  if (!Array.isArray(inputCategories) || inputCategories.length === 0) {
-    return clonePricingCategories();
+export const normalizePricingCategories = () => clonePricingCategories();
+
+export const findServiceById = (serviceId = "") => {
+  const normalizedId = String(serviceId || "").trim();
+
+  if (!normalizedId) {
+    return null;
   }
 
-  return DEFAULT_PRICING_CATEGORIES.map((defaultCategory, index) => {
-    const sourceCategory =
-      inputCategories.find((category) => category?.id === defaultCategory.id) ||
-      inputCategories[index];
+  for (const category of DEFAULT_PRICING_CATEGORIES) {
+    const service = category.services.find((entry) => entry.id === normalizedId);
 
-    if (!sourceCategory) {
-      return cloneCategory(defaultCategory);
+    if (service) {
+      return {
+        ...createService(service),
+        categoryId: category.id,
+        categoryLabel: category.label,
+      };
     }
+  }
+
+  return null;
+};
+
+export const findServiceByTitle = (title = "") => {
+  const normalizedTitle = String(title || "").trim().toLowerCase();
+
+  if (!normalizedTitle) {
+    return null;
+  }
+
+  for (const category of DEFAULT_PRICING_CATEGORIES) {
+    const service = category.services.find(
+      (entry) => entry.title.toLowerCase() === normalizedTitle
+    );
+
+    if (service) {
+      return {
+        ...createService(service),
+        categoryId: category.id,
+        categoryLabel: category.label,
+      };
+    }
+  }
+
+  return null;
+};
+
+export const getServiceDefinition = ({ id = "", title = "" } = {}) =>
+  findServiceById(id) || findServiceByTitle(title) || null;
+
+export const isFixedPriceService = (service) => service?.pricingType === "fixed";
+export const isMulchingService = (service) => service?.pricingType === "mulch";
+export const isSqftBasedService = (service) => service?.pricingType === "sqft";
+export const requiresSquareFootage = (service) =>
+  Boolean(service?.requiresSqft || service?.pricingType === "sqft");
+
+export const calculateServiceQuote = (service, input = {}) => {
+  if (!service) {
+    return null;
+  }
+
+  if (isFixedPriceService(service)) {
+    const fixedPrice = roundMoney(service.fixedPrice);
 
     return {
-      id: defaultCategory.id,
-      label: sourceCategory.label || defaultCategory.label,
-      title: sourceCategory.title || defaultCategory.title,
-      subtitle: sourceCategory.subtitle || defaultCategory.subtitle,
-      services: Array.isArray(sourceCategory.services)
-        ? sourceCategory.services.map(createService)
-        : defaultCategory.services.map(createService),
+      pricingType: "fixed",
+      input: {},
+      fixedPrice,
+      minimumPrice: fixedPrice,
+      calculatedPrice: fixedPrice,
+      finalPrice: fixedPrice,
+      summary: service.pricingSummary,
     };
-  });
+  }
+
+  if (isMulchingService(service)) {
+    const sqft = toPositiveNumber(input.sqft);
+    const depthIn = toPositiveNumber(input.depthIn) || service.defaultDepthIn || 3;
+    const depthFt = roundMeasurement(depthIn / 12);
+    const cubicFt = roundMeasurement(sqft * depthFt);
+    const rawYards = roundMeasurement(cubicFt / 27);
+    const chargeableYards = roundMeasurement(
+      Math.max(rawYards || 0, Number(service.minimumYards || 5))
+    );
+    const finalPrice = roundMoney(chargeableYards * Number(service.unitRate || 120));
+
+    return {
+      pricingType: "mulch",
+      input: {
+        sqft,
+        depthIn,
+      },
+      measurement: {
+        depthFt,
+        cubicFt,
+        rawYards,
+        chargeableYards,
+      },
+      minimumPrice: roundMoney(
+        Number(service.minimumYards || 5) * Number(service.unitRate || 120)
+      ),
+      minimumYards: Number(service.minimumYards || 5),
+      unitRate: Number(service.unitRate || 120),
+      calculatedPrice: finalPrice,
+      finalPrice,
+      summary:
+        sqft > 0
+          ? `${sqft} sq ft at ${depthIn}" depth = ${chargeableYards} yards charged`
+          : `Defaulted to the ${Number(service.minimumYards || 5)} yard minimum`,
+    };
+  }
+
+  const sqft = toPositiveNumber(input.sqft);
+  const calculatedPrice = roundMoney(sqft * Number(service.unitRate || 0));
+  const minimumPrice = roundMoney(service.minimumPrice);
+  const finalPrice = roundMoney(Math.max(minimumPrice, calculatedPrice));
+
+  return {
+    pricingType: "sqft",
+    input: {
+      sqft,
+    },
+    minimumPrice,
+    unitRate: Number(service.unitRate || 0),
+    calculatedPrice,
+    finalPrice,
+    summary:
+      sqft > 0
+        ? `${sqft} sq ft x $${Number(service.unitRate || 0)}/sq ft`
+        : service.pricingSummary,
+  };
 };
 
 export const formatPrice = (value) => {

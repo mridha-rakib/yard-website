@@ -2,10 +2,10 @@ import { formatPrice } from "@/lib/pricing-content";
 import { formatDate, formatDateTime } from "@/lib/time";
 
 export const createEmptyPaymentSummary = () => ({
-  totalPaidWorkerPayout: 0,
-  pendingWorkerPayout: 0,
-  currentMonthWorkerPayout: 0,
-  totalWorkerPayout: 0,
+  totalPaidHeroPayout: 0,
+  pendingHeroPayout: 0,
+  currentMonthHeroPayout: 0,
+  totalHeroPayout: 0,
   totalPlatformFee: 0,
   totalCount: 0,
 });
@@ -19,7 +19,7 @@ export const paymentStatusConfig = {
     cardTone: "border-emerald-200 bg-emerald-50 text-emerald-700",
   },
   authorized: {
-    label: "Processing",
+    label: "Secure Hold",
     tone: "text-blue-600 bg-blue-50",
     cardTone: "border-blue-200 bg-blue-50 text-blue-700",
   },
@@ -88,7 +88,7 @@ export const getLocationLabel = (payment = {}) =>
     .filter(Boolean)
     .join(", ") || "Location pending";
 
-export const getWorkerInitials = (name = "") =>
+export const getHeroInitials = (name = "") =>
   String(name)
     .trim()
     .split(/\s+/)

@@ -5,7 +5,7 @@ const unwrap = (response) => response.data.data;
 export const authApi = {
   login: (payload) => publicApi.post("/auth/login", payload).then(unwrap),
   registerCustomer: (payload) => publicApi.post("/auth/register", payload).then(unwrap),
-  registerWorker: (payload) => apiClient.post("/auth/worker-register", payload).then(unwrap),
+  registerHero: (payload) => apiClient.post("/auth/worker-register", payload).then(unwrap),
   switchRole: (payload) => apiClient.post("/auth/switch-role", payload).then(unwrap),
   requestEmailVerificationCode: (payload = {}) =>
     apiClient.post("/auth/email-verification/request", payload).then(unwrap),

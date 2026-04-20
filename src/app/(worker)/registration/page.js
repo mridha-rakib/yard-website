@@ -82,9 +82,9 @@ const validateField = (name, value) => {
 const buildCityZipValue = (location = {}) =>
   [location?.city, location?.zipCode].filter(Boolean).join(", ");
 
-const WorkerRegistrationPage = () => {
+const HeroRegistrationPage = () => {
   const router = useRouter();
-  const registerWorker = useAuthStore((state) => state.registerWorker);
+  const registerHero = useAuthStore((state) => state.registerHero);
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isReady = useAuthStore((state) => state.isReady);
@@ -98,18 +98,18 @@ const WorkerRegistrationPage = () => {
   const [submissionResult, setSubmissionResult] = useState(null);
   const canUpgradeExistingAccount =
     Boolean(user) && hasRole(user, "customer") && !hasRole(user, "worker");
-  const alreadyHasWorkerAccess = Boolean(user) && hasRole(user, "worker");
+  const alreadyHasHeroAccess = Boolean(user) && hasRole(user, "worker");
 
   useEffect(() => {
     if (!isReady || !isAuthenticated || !user || submissionResult) {
       return;
     }
 
-    if (alreadyHasWorkerAccess || !canUpgradeExistingAccount) {
+    if (alreadyHasHeroAccess || !canUpgradeExistingAccount) {
       router.replace(getPostAuthPath(user));
     }
   }, [
-    alreadyHasWorkerAccess,
+    alreadyHasHeroAccess,
     canUpgradeExistingAccount,
     isAuthenticated,
     isReady,
@@ -276,7 +276,7 @@ const WorkerRegistrationPage = () => {
     setSubmissionResult(null);
 
     try {
-      const session = await registerWorker({
+      const session = await registerHero({
         fullName: formData.fullName.trim(),
         age: Number.parseInt(formData.age, 10),
         cityZipCode: formData.cityZipCode.trim(),
@@ -305,11 +305,11 @@ const WorkerRegistrationPage = () => {
       <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {canUpgradeExistingAccount ? "Become a Worker" : "Apply as a Worker"}
+            {canUpgradeExistingAccount ? "Become a Hero" : "Apply as a Hero"}
           </h1>
           <p className="text-gray-600">
             {canUpgradeExistingAccount
-              ? "Use your current account to unlock worker access while keeping the same email and phone number."
+              ? "Use your current account to unlock Hero access while keeping the same email and phone number."
               : "Fill out the form below to start earning with local yard jobs."}
           </p>
         </div>
@@ -330,12 +330,12 @@ const WorkerRegistrationPage = () => {
         {submissionResult ? (
           <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-5">
             <h2 className="text-lg font-semibold text-green-900">
-              {submissionResult.upgradedExistingAccount ? "Worker access enabled" : "Application submitted"}
+              {submissionResult.upgradedExistingAccount ? "Hero access enabled" : "Application submitted"}
             </h2>
             <p className="mt-2 text-sm text-green-800">
               {submissionResult.upgradedExistingAccount
-                ? "Your existing account now supports both customer and worker access."
-                : "Your worker account was created and signed in successfully."}
+                ? "Your existing account now supports both customer and Hero access."
+                : "Your Hero account was created and signed in successfully."}
             </p>
             {submissionResult.generatedPassword ? (
               <p className="mt-2 text-sm text-green-900">
@@ -344,7 +344,7 @@ const WorkerRegistrationPage = () => {
               </p>
             ) : null}
             <p className="mt-2 text-sm text-green-700">
-              Worker approval status starts as pending until the dashboard reviews the application.
+              Hero approval status starts as pending until the dashboard reviews the application.
             </p>
             <button
               type="button"
@@ -449,7 +449,7 @@ const WorkerRegistrationPage = () => {
             />
             {canUpgradeExistingAccount ? (
               <p className="mt-1 text-xs text-gray-500">
-                Your worker access must use the same phone number already saved on this account.
+                Your Hero access must use the same phone number already saved on this account.
               </p>
             ) : null}
             {errors.phoneNumber && touched.phoneNumber ? (
@@ -478,7 +478,7 @@ const WorkerRegistrationPage = () => {
             />
             {canUpgradeExistingAccount ? (
               <p className="mt-1 text-xs text-gray-500">
-                Your worker access must use the same email address already saved on this account.
+                Your Hero access must use the same email address already saved on this account.
               </p>
             ) : null}
             {errors.emailAddress && touched.emailAddress ? (
@@ -636,7 +636,7 @@ const WorkerRegistrationPage = () => {
                 Submitting...
               </span>
             ) : (
-              canUpgradeExistingAccount ? "Enable Worker Access" : "Submit Application"
+              canUpgradeExistingAccount ? "Enable Hero Access" : "Submit Application"
             )}
           </button>
 
@@ -667,4 +667,4 @@ const WorkerRegistrationPage = () => {
   );
 };
 
-export default WorkerRegistrationPage;
+export default HeroRegistrationPage;

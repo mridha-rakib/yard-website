@@ -14,17 +14,17 @@ const PricingPage = () => {
     {
       question: "Is there a minimum charge per project?",
       answer:
-        "Yes, there is a minimum charge of $45 per project to ensure quality service and fair compensation for our workers.",
+        "Yes. Many services use a minimum price, and the final quote is the higher of that minimum or the calculator result based on square footage. Mulching uses cubic-yard logic with a 5-yard minimum.",
     },
     {
       question: "What will I actually be billed for payment?",
       answer:
-        "You'll be billed for the service plan you choose plus any additional services requested. All prices are transparent and shown before you confirm.",
+        "YardHero shows the final fixed or calculated service price before checkout. Your payment method is secured up front, then funds are released only after the completed job is verified.",
     },
     {
       question: "What if I'm not satisfied with my work?",
       answer:
-        "After the job is completed, the worker must submit a photo of the finished work for review. If the work does not meet our quality standards, payment will not be released and another qualified worker will be assigned to complete the job.",
+        "Every completed job requires a verification photo and verification video from the Hero. If the work is not done right, YardHero will fix it or refund it under the YardHero Guarantee.",
     },
     {
       question: "Do I have to pay separately from a subscription?",
@@ -34,12 +34,12 @@ const PricingPage = () => {
     {
       question: "How can I communicate with the project?",
       answer:
-        "You can communicate directly with your assigned worker through our app, via phone, or through our customer support team.",
+        "You can communicate directly with your Hero through our app, via phone, or through our customer support team.",
     },
     {
-      question: "Do workers bring their own tools and supplies?",
+      question: "Do Heroes bring their own tools and supplies?",
       answer:
-        "Yes, all workers come equipped with professional-grade tools and supplies needed for the job. Any special materials will be discussed beforehand.",
+        "Yes, all Heroes come equipped with professional-grade tools and supplies needed for the job. Any special materials will be discussed beforehand.",
     },
   ];
 

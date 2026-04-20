@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
   Car,
@@ -13,10 +13,9 @@ import {
   Wind,
   Wrench,
 } from "lucide-react";
-import { contentApi } from "@/lib/api/content-api";
 import { buildLoginPath } from "@/lib/auth/auth-redirect";
 import { buildBookServicePath } from "@/lib/booking-service";
-import { clonePricingCategories, formatPrice, normalizePricingCategories, PRICING_CONTENT_KEY } from "@/lib/pricing-content";
+import { clonePricingCategories, formatPrice } from "@/lib/pricing-content";
 import { useAuthStore } from "@/stores/use-auth-store";
 
 const ICON_COMPONENTS = {
@@ -37,6 +36,7 @@ const ServiceCard = ({
   icon,
   title,
   price,
+  pricingSummary,
   duration,
   description,
   buttonText,
@@ -57,6 +57,9 @@ const ServiceCard = ({
       </div>
       <p className="mb-4 text-sm text-gray-500">{duration}</p>
       <p className="grow text-sm text-gray-600">{description}</p>
+      <p className="mt-4 text-xs font-medium uppercase tracking-[0.14em] text-green-700">
+        {pricingSummary}
+      </p>
 
       <Link
         href={bookHref}
@@ -73,54 +76,9 @@ const ServiceCard = ({
 };
 
 const ServicePricing = () => {
-  const [categories, setCategories] = useState(() => clonePricingCategories());
+  const [categories] = useState(() => clonePricingCategories());
   const [activeTab, setActiveTab] = useState("yard");
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-
-  useEffect(() => {
-    let ignore = false;
-
-    const loadPricingContent = async () => {
-      setIsLoading(true);
-      setLoadError("");
-
-      try {
-        const content = await contentApi.getContentByKey(PRICING_CONTENT_KEY);
-
-        if (ignore) {
-          return;
-        }
-
-        const nextCategories = normalizePricingCategories(content?.value?.categories);
-        setCategories(nextCategories);
-        setActiveTab((currentTab) =>
-          nextCategories.some((category) => category.id === currentTab)
-            ? currentTab
-            : nextCategories[0]?.id || "yard"
-        );
-      } catch (apiError) {
-        if (ignore) {
-          return;
-        }
-
-        if (apiError?.response?.status !== 404) {
-          setLoadError("Showing default pricing because live pricing could not be loaded.");
-        }
-      } finally {
-        if (!ignore) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadPricingContent();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
 
   const currentCategory =
     categories.find((category) => category.id === activeTab) || categories[0];
@@ -133,17 +91,9 @@ const ServicePricing = () => {
     <div className="bg-white">
       <main className="px-6">
         <div className="max-w-7xl mx-auto">
-          {isLoading ? (
-            <div className="mb-6 text-sm text-center text-gray-500">
-              Loading latest pricing...
-            </div>
-          ) : null}
-
-          {loadError ? (
-            <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-              {loadError}
-            </div>
-          ) : null}
+          <div className="mb-6 rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-center text-sm text-green-800">
+            YardHero pricing is automatic: fixed-price services stay flat, and measured services use the higher of the minimum price or the calculator rate.
+          </div>
 
           <div className="flex flex-wrap justify-between gap-2 mb-8">
             {categories.map((tab) => (

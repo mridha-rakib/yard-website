@@ -1,6 +1,6 @@
 import Navbar from "../component/shared/Navbar";
 
-export default function WorkerLayout({ children }) {
+export default function HeroLayout({ children }) {
   return (
     <>
     {/* <Navbar/> */}

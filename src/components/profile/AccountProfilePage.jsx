@@ -54,8 +54,17 @@ const workerStatusLabel = {
 
 const roleLabel = {
   customer: "Customer",
-  worker: "Worker",
+  worker: "Hero",
 };
+
+const createEmptyPortfolioItem = () => ({
+  id: `portfolio-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  title: "",
+  description: "",
+  serviceType: "",
+  completedAt: "",
+  imageUrl: "",
+});
 
 const createEmptyProfileForm = () => ({
   name: "",
@@ -69,6 +78,8 @@ const createEmptyProfileForm = () => ({
   profilePhotoUrl: "",
   idDocumentUrl: "",
   skillsText: "",
+  workerBio: "",
+  portfolioItems: [],
   availabilityLabel: "",
   availableDays: [],
   startTime: createEmptyTimeParts(),
@@ -101,6 +112,19 @@ const mapProfileToForm = (profile) => ({
   profilePhotoUrl: profile?.profilePhotoUrl || "",
   idDocumentUrl: profile?.idDocumentUrl || "",
   skillsText: Array.isArray(profile?.skills) ? profile.skills.join(", ") : "",
+  workerBio: profile?.workerBio || "",
+  portfolioItems: Array.isArray(profile?.portfolioItems)
+    ? profile.portfolioItems.map((item, index) => ({
+        id: item?.id || `portfolio-${index + 1}`,
+        title: item?.title || "",
+        description: item?.description || "",
+        serviceType: item?.serviceType || "",
+        completedAt: item?.completedAt
+          ? new Date(item.completedAt).toISOString().slice(0, 10)
+          : "",
+        imageUrl: item?.imageUrl || "",
+      }))
+    : [],
   availabilityLabel: profile?.availability?.label || "",
   availableDays: Array.isArray(profile?.availability?.days) ? profile.availability.days : [],
   startTime: getTimeFieldParts(profile?.availability?.startTime),
@@ -129,6 +153,17 @@ const buildProfilePayload = (formData, expectedRole) => {
       .split(",")
       .map((skill) => skill.trim())
       .filter(Boolean);
+    payload.workerBio = formData.workerBio.trim();
+    payload.portfolioItems = formData.portfolioItems
+      .map((item) => ({
+        id: item.id,
+        title: item.title.trim(),
+        description: item.description.trim(),
+        serviceType: item.serviceType.trim(),
+        completedAt: item.completedAt || null,
+        imageUrl: item.imageUrl.trim(),
+      }))
+      .filter((item) => item.imageUrl);
     payload.availabilityLabel = formData.availabilityLabel.trim();
     payload.availableDays = formData.availableDays;
     payload.startTime = buildTimeValue(formData.startTime);
@@ -320,6 +355,63 @@ export default function AccountProfilePage({ expectedRole }) {
     setProfileMessage("");
   };
 
+  const handlePortfolioFieldChange = (itemId, fieldName, fieldValue) => {
+    setProfileForm((currentValue) => ({
+      ...currentValue,
+      portfolioItems: currentValue.portfolioItems.map((item) =>
+        item.id === itemId ? { ...item, [fieldName]: fieldValue } : item
+      ),
+    }));
+    setProfileError("");
+    setProfileMessage("");
+  };
+
+  const handleAddPortfolioItem = () => {
+    setProfileForm((currentValue) => ({
+      ...currentValue,
+      portfolioItems: [...currentValue.portfolioItems, createEmptyPortfolioItem()],
+    }));
+    setProfileError("");
+    setProfileMessage("");
+  };
+
+  const handleRemovePortfolioItem = (itemId) => {
+    setProfileForm((currentValue) => ({
+      ...currentValue,
+      portfolioItems: currentValue.portfolioItems.filter((item) => item.id !== itemId),
+    }));
+    setProfileError("");
+    setProfileMessage("");
+  };
+
+  const handlePortfolioImageChange = async (itemId, event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setIsPreparingPhoto(true);
+    setProfileError("");
+    setProfileMessage("");
+
+    try {
+      const optimizedPhoto = await optimizeProfilePhotoFile(file);
+      setProfileForm((currentValue) => ({
+        ...currentValue,
+        portfolioItems: currentValue.portfolioItems.map((item) =>
+          item.id === itemId ? { ...item, imageUrl: optimizedPhoto } : item
+        ),
+      }));
+      setProfileMessage("Portfolio image is ready. Save Profile to publish it.");
+    } catch (error) {
+      setProfileError(error?.message || "We could not prepare that portfolio image.");
+    } finally {
+      setIsPreparingPhoto(false);
+    }
+  };
+
   const toggleAvailableDay = (dayValue) => {
     setProfileForm((currentValue) => ({
       ...currentValue,
@@ -503,7 +595,7 @@ export default function AccountProfilePage({ expectedRole }) {
                         </span>
                         {expectedRole === "worker" ? (
                           <span className="rounded-full bg-[#f5f7fa] px-3 py-1 text-xs font-semibold text-[#475569]">
-                            {workerStatusLabel[profile?.workerStatus] || "Worker"}
+                            {workerStatusLabel[profile?.workerStatus] || "Hero"}
                           </span>
                         ) : null}
                       </div>
@@ -531,7 +623,7 @@ export default function AccountProfilePage({ expectedRole }) {
                     </p>
                     <p className="mt-2 text-lg font-semibold text-[#111827]">
                       {expectedRole === "worker"
-                        ? workerStatusLabel[profile?.workerStatus] || "Worker"
+                        ? workerStatusLabel[profile?.workerStatus] || "Hero"
                         : "Active customer"}
                     </p>
                   </div>
@@ -720,7 +812,7 @@ export default function AccountProfilePage({ expectedRole }) {
                     <div className="flex items-center gap-2">
                       <CalendarDays className="h-5 w-5 text-[#0A3019]" />
                       <h3 className="text-xl font-semibold text-[#0f172a]">
-                        Worker Details
+                        Hero Details
                       </h3>
                     </div>
 
@@ -733,6 +825,18 @@ export default function AccountProfilePage({ expectedRole }) {
                           value={profileForm.skillsText}
                           onChange={handleProfileFieldChange}
                           placeholder="Lawn mowing, cleanup, trimming"
+                          className="mt-2 w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
+                        />
+                      </label>
+
+                      <label className="text-sm font-medium text-[#334155]">
+                        Hero bio
+                        <textarea
+                          rows={4}
+                          name="workerBio"
+                          value={profileForm.workerBio}
+                          onChange={handleProfileFieldChange}
+                          placeholder="Tell customers what kind of outdoor jobs you do best."
                           className="mt-2 w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
                         />
                       </label>
@@ -801,6 +905,155 @@ export default function AccountProfilePage({ expectedRole }) {
                           className="mt-2 w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
                         />
                       </label>
+
+                      <div className="rounded-[24px] border border-[#d5ddd7] bg-[#fbfdfb] p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-[#0f172a]">
+                              Portfolio Photos
+                            </p>
+                            <p className="mt-1 text-sm text-[#64748b]">
+                              New Heroes can build a portfolio immediately so customers can see the quality of your work.
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleAddPortfolioItem}
+                            className="inline-flex items-center justify-center rounded-full border border-[#0A3019] bg-white px-4 py-2 text-sm font-semibold text-[#0A3019] transition-colors hover:bg-[#f6faf7]"
+                          >
+                            Add Portfolio Item
+                          </button>
+                        </div>
+
+                        <div className="mt-5 space-y-4">
+                          {profileForm.portfolioItems.length === 0 ? (
+                            <div className="rounded-2xl border border-dashed border-[#d5ddd7] bg-white px-4 py-6 text-sm text-[#64748b]">
+                              No portfolio items yet. Add a completed job photo so assigned customers can review your quality.
+                            </div>
+                          ) : (
+                            profileForm.portfolioItems.map((item) => {
+                              const portfolioUploadId = `portfolio-upload-${item.id}`;
+
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="rounded-2xl border border-[#dbe3dd] bg-white p-4"
+                                >
+                                  <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                                    <div className="space-y-3">
+                                      {item.imageUrl ? (
+                                        <img
+                                          src={item.imageUrl}
+                                          alt={item.title || "Portfolio"}
+                                          className="h-40 w-full rounded-2xl border border-[#d8e4db] object-cover"
+                                        />
+                                      ) : (
+                                        <div className="flex h-40 w-full items-center justify-center rounded-2xl border border-dashed border-[#d5ddd7] bg-[#f8faf8] text-sm text-[#64748b]">
+                                          Upload a completed job photo
+                                        </div>
+                                      )}
+
+                                      <input
+                                        id={portfolioUploadId}
+                                        type="file"
+                                        accept={PROFILE_PHOTO_ACCEPT}
+                                        onChange={(event) =>
+                                          handlePortfolioImageChange(item.id, event)
+                                        }
+                                        className="hidden"
+                                      />
+                                      <div className="flex flex-wrap gap-2">
+                                        <label
+                                          htmlFor={portfolioUploadId}
+                                          className="inline-flex cursor-pointer items-center justify-center rounded-full bg-[#0A3019] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0b4221]"
+                                        >
+                                          Upload photo
+                                        </label>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemovePortfolioItem(item.id)}
+                                          className="inline-flex items-center justify-center rounded-full border border-[#d5ddd7] bg-white px-4 py-2 text-sm font-semibold text-[#425246] transition-colors hover:bg-[#f6faf7]"
+                                        >
+                                          Remove item
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div className="grid gap-4">
+                                      <label className="text-sm font-medium text-[#334155]">
+                                        Project title
+                                        <input
+                                          type="text"
+                                          value={item.title}
+                                          onChange={(event) =>
+                                            handlePortfolioFieldChange(
+                                              item.id,
+                                              "title",
+                                              event.target.value
+                                            )
+                                          }
+                                          className="mt-2 w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
+                                        />
+                                      </label>
+
+                                      <label className="text-sm font-medium text-[#334155]">
+                                        Service type
+                                        <input
+                                          type="text"
+                                          value={item.serviceType}
+                                          onChange={(event) =>
+                                            handlePortfolioFieldChange(
+                                              item.id,
+                                              "serviceType",
+                                              event.target.value
+                                            )
+                                          }
+                                          placeholder="Lawn mowing, mulch install, hedge trimming"
+                                          className="mt-2 w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
+                                        />
+                                      </label>
+
+                                      <label className="text-sm font-medium text-[#334155]">
+                                        Completed date
+                                        <input
+                                          type="date"
+                                          value={item.completedAt}
+                                          onChange={(event) =>
+                                            handlePortfolioFieldChange(
+                                              item.id,
+                                              "completedAt",
+                                              event.target.value
+                                            )
+                                          }
+                                          className="mt-2 w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
+                                        />
+                                      </label>
+
+                                      <label className="text-sm font-medium text-[#334155]">
+                                        Description
+                                        <textarea
+                                          rows={4}
+                                          value={item.description}
+                                          onChange={(event) =>
+                                            handlePortfolioFieldChange(
+                                              item.id,
+                                              "description",
+                                              event.target.value
+                                            )
+                                          }
+                                          placeholder="Add a short explanation of what you completed."
+                                          className="mt-2 w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
+                                        />
+                                      </label>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </section>
                 ) : null}

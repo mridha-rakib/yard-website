@@ -17,8 +17,8 @@ const TERMS_DEFAULT = {
     introduction: {
       title: "1. Introduction",
       paragraphs: [
-        "Welcome to YardWork. These Terms & Conditions govern your use of our platform, which connects customers seeking yard work services with qualified workers. By accessing or using our platform, you agree to be bound by these terms.",
-        "Our platform serves as a marketplace to facilitate connections between customers and workers. We are not an employer, and we do not directly provide yard work services.",
+        "Welcome to YardWork. These Terms & Conditions govern your use of our platform, which connects customers seeking yard work services with qualified Heroes. By accessing or using our platform, you agree to be bound by these terms.",
+        "Our platform serves as a marketplace to facilitate connections between customers and Heroes. We are not an employer, and we do not directly provide yard work services.",
       ],
     },
     eligibility: {
@@ -36,13 +36,13 @@ const TERMS_DEFAULT = {
     platformRole: {
       title: "3. Platform Role",
       intro:
-        "YardWork operates as a connection service only. We provide the technology platform that enables customers and workers to find and communicate with each other.",
+        "YardWork operates as a connection service only. We provide the technology platform that enables customers and Heroes to find and communicate with each other.",
       emphasis: "Important clarifications:",
       items: [
-        "We do not employ workers or control how they perform services",
+        "We do not employ Heroes or control how they perform services",
         "We do not guarantee the quality, safety, or legality of services provided",
-        "Workers are independent contractors, not employees of YardWork",
-        "All agreements for services are directly between customers and workers",
+        "Heroes are Independent Hero Contractors, not employees of YardWork",
+        "All agreements for services are directly between customers and Independent Hero Contractors",
         "We facilitate payment processing but are not party to the service contract",
       ],
     },
@@ -52,11 +52,11 @@ const TERMS_DEFAULT = {
       customerItems: [
         "Provide accurate and complete job descriptions, including location, scope of work, and timeline",
         "Set fair and reasonable compensation for the work requested",
-        "Respond promptly to worker inquiries and applications",
+        "Respond promptly to Hero inquiries and applications",
         "Do not post jobs that violate local laws or regulations",
         "Cancel jobs with adequate notice if plans change",
       ],
-      workerTitle: "For Workers:",
+      workerTitle: "For Independent Hero Contractors:",
       workerItems: [
         "Only accept jobs you are qualified and equipped to complete",
         "Communicate clearly about your availability and capabilities",
@@ -68,7 +68,7 @@ const TERMS_DEFAULT = {
     payments: {
       title: "5. Payments & Platform Fees",
       intro:
-        "YardWork facilitates secure payment processing between customers and workers. Here's how it works:",
+        "YardWork facilitates secure payment processing between customers and Heroes. Here's how it works:",
       feeTitle: "Platform Fee: 12%",
       feeDescription:
         "We charge a 12% service fee on all completed transactions. This fee covers payment processing, platform maintenance, customer support, and dispute resolution services.",
@@ -76,19 +76,19 @@ const TERMS_DEFAULT = {
       items: [
         "Customers pay through the platform when posting or accepting a quote",
         "Funds are held securely until job completion is confirmed",
-        "Workers receive payment after the customer confirms satisfactory completion",
+        "Heroes receive payment after the customer confirms satisfactory completion",
         "The 12% platform fee is automatically deducted from the total payment",
-        "Workers receive 88% of the agreed job price",
+        "Heroes receive 88% of the agreed job price",
         "Refunds are processed according to our dispute resolution policy",
       ],
     },
     disputes: {
       title: "6. Job Completion & Disputes",
       intro:
-        "We encourage direct communication between customers and workers to resolve any issues. However, if disputes arise:",
+        "We encourage direct communication between customers and Heroes to resolve any issues. However, if disputes arise:",
       items: [
         "Customers must confirm job completion within 48 hours or provide specific reasons for dissatisfaction",
-        "Workers should document completed work with photos when possible",
+        "Heroes should document completed work with photos when possible",
         "Either party can open a dispute through the platform within 7 days of job completion",
         "Our support team will review evidence from both parties",
         "We reserve the right to make final decisions on payment release in disputes",

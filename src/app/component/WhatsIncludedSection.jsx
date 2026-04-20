@@ -28,7 +28,7 @@ const WhatsIncludedSection = () => {
 
             <ul className="mt-4 space-y-3 text-left text-gray-600 text-sm sm:text-base">
               {[
-                "Verified local workers",
+                "Verified local Heroes",
                 "Flexible scheduling options",
                 "Pay after job completion",
                 "Secure payment processing",

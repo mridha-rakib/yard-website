@@ -18,9 +18,9 @@ const PlatformFeeSection = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               {[
                 {
-                  title: "Worker Receives",
+                  title: "Hero Receives",
                   percent: "88%",
-                  desc: "Of your payment goes directly to the worker",
+                  desc: "Of your payment goes directly to the Hero",
                 },
                 {
                   title: "Platform Fee",
@@ -65,7 +65,7 @@ const PlatformFeeSection = () => {
 
                 <div>
                   <p className="text-[#4B5563] text-sm sm:text-base">
-                    Worker Gets
+                    Hero Gets
                   </p>
                   <p className="text-2xl sm:text-3xl font-bold">$88</p>
                 </div>

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { CreditCard, Briefcase, User, Wrench, Mail, Phone, Clock, ChevronDown, Send } from 'lucide-react';
 
-const page = () => {
+const HelpSupportPage = () => {
   const [openFaq, setOpenFaq] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -100,7 +100,7 @@ const page = () => {
         <div className="max-w-4xl mx-auto px-4 py-20 text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-3">Help & Support</h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            We're here to help you with jobs, payments, and account issues. Get the answers you need quickly and easily.
+            We&apos;re here to help you with jobs, payments, and account issues. Get the answers you need quickly and easily.
           </p>
         </div>
       </div>
@@ -156,7 +156,7 @@ const page = () => {
         <div className="text-center">
           <h2 className="text-xl font-bold text-gray-900 mb-2">Still Need Help?</h2>
           <p className="text-gray-600 mb-8">
-            Contact our support team directly and we'll get back to you as soon as possible.
+            Contact our support team directly and we&apos;ll get back to you as soon as possible.
           </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -319,4 +319,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default HelpSupportPage;

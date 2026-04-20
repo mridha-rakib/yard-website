@@ -92,7 +92,7 @@ const page = () => {
           <p className="text-gray-700 leading-relaxed mb-4">
             Yard Hero operates as a marketplace platform that connects customers
             seeking yard work and home maintenance services with independent
-            contractors ("Workers"). We facilitate these connections but do not
+            contractors ("Independent Hero Contractors"). We facilitate these connections but do not
             directly provide the services.
             <br />
             By using our platform, you acknowledge that all work performed is
@@ -130,15 +130,15 @@ const page = () => {
               Yard Hero is NOT liable for:
             </p>
             <ul className="list-disc list-inside space-y-1 text-red-700 ml-4">
-              <li>Worker injuries sustained during job performance</li>
+              <li>Hero injuries sustained while providing services</li>
               <li>Accidents occurring during service delivery</li>
-              <li>Property damage caused by workers or during services</li>
+              <li>Property damage caused by Heroes or during services</li>
               <li>Delays or inconveniences related to service delivery</li>
             </ul>
           </div>
           <p className="text-gray-700 leading-relaxed">
             All services are performed by independent contractors. Customers and
-            workers are responsible for ensuring appropriate insurance coverage,
+            Independent Hero Contractors are responsible for ensuring appropriate insurance coverage,
             safety measures, and legal compliance for all work performed.
           </p>
         </section>
@@ -154,15 +154,15 @@ const page = () => {
           <ul className="list-disc list-inside space-y-2 text-gray-700 ml-4 mb-4">
             <li>Provide accurate job descriptions and property access</li>
             <li>
-              Ensure your property is safe for workers to perform services
+              Ensure your property is safe for Heroes to provide services
             </li>
             <li>Pay for services as agreed through the platform</li>
-            <li>Verify worker credentials and insurance if required</li>
+            <li>Verify Hero credentials and insurance if required</li>
           </ul>
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
             <p className="text-yellow-800">
               <span className="font-semibold">Insurance Recommendation::</span>{" "}
-              Consider verifying that workers carry appropriate liability
+              Consider verifying that Heroes carry appropriate liability
               insurance for the services being performed on your property.
             </p>
           </div>
@@ -171,14 +171,14 @@ const page = () => {
         {/* 5. User Restrictions */}
         <section id="restrictions" className="mb-12">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            5. Terms for Workers (Independent Contractors)
+            5. Terms for Independent Hero Contractors
           </h2>
           <p className="text-gray-700 leading-relaxed mb-4">
             Your Status & Responsibilities
           </p>
           <ul className="list-disc list-inside space-y-2 text-gray-700 ml-4 mb-4">
             <p>
-              As a worker on Yard Hero, you are an independent contractor, not
+              As an Independent Hero Contractor on Yard Hero, you are not
               an employee. This means:{" "}
             </p>
             <li>You are responsible for your own insurance coverage</li>
@@ -190,8 +190,8 @@ const page = () => {
           <div className="bg-orange-50 border-l-4 border-orange-400 p-4">
             <p className="text-orange-800">
               <span className="font-semibold">Insurance Requirement::</span>{" "}
-              Workers are strongly encouraged to maintain general liability
-              insurance and workers' compensation coverage where applicable.
+              Heroes are strongly encouraged to maintain general liability
+              insurance and occupational accident coverage or other coverage required by law.
             </p>
           </div>
         </section>
@@ -202,7 +202,7 @@ const page = () => {
             6. Dispute Resolution
           </h2>
           <p className="text-gray-700 leading-relaxed mb-4">
-            For disputes between customers and workers, Yard Hero provides basic
+            For disputes between customers and Heroes, Yard Hero provides basic
             mediation assistance. However, legal disputes must be resolved
             between the parties directly.
           </p>
@@ -261,7 +261,7 @@ const page = () => {
             <p className="text-emerald-100 max-w-2xl mx-auto">
               We're committed to ensuring you feel safe and fairly compensated
               for your hard work. Our team monitors all jobs and payments to
-              protect workers like you.
+              protect Heroes like you.
             </p>
           </div>
         </div>

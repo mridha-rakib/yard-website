@@ -31,12 +31,16 @@ const statusConfig = {
     badgeClassName: "bg-[#fff7e6] text-[#b54708]",
   },
   assigned: {
-    label: "Assigned",
+    label: "Accepted",
     badgeClassName: "bg-[#f3e8ff] text-[#7c3aed]",
   },
   in_progress: {
     label: "In Progress",
     badgeClassName: "bg-[#e8f1ff] text-[#1d4ed8]",
+  },
+  pending_verification: {
+    label: "Under Review",
+    badgeClassName: "bg-[#fff7e6] text-[#b54708]",
   },
   completed: {
     label: "Completed",
@@ -64,7 +68,7 @@ const formatSubmittedDate = (value) =>
 
 const getTotalAmount = (job) => job?.payment?.amount || job?.estimatedPrice || 0;
 
-const getWorkerLabel = (job) => {
+const getHeroLabel = (job) => {
   if (!job?.assignedWorker?.name) {
     return "";
   }
@@ -78,11 +82,15 @@ const getWorkerLabel = (job) => {
 
 const getPendingNote = (job) => {
   if (job?.status === "new") {
-    return "We are finding the first available worker for this job.";
+    return "We are finding the first available Hero for this job.";
   }
 
   if (job?.status === "cancelled") {
     return job?.cancelReason || "This request has been cancelled.";
+  }
+
+  if (job?.status === "pending_verification") {
+    return "The Hero submitted photo and video proof. YardHero is reviewing the job before payment release.";
   }
 
   return "";
@@ -90,7 +98,7 @@ const getPendingNote = (job) => {
 
 function JobCard({ job }) {
   const status = statusConfig[job.status] || statusConfig.new;
-  const workerLabel = getWorkerLabel(job);
+  const workerLabel = getHeroLabel(job);
   const pendingNote = getPendingNote(job);
 
   return (
@@ -128,7 +136,7 @@ function JobCard({ job }) {
               </div>
               <div>
                 <p className="text-sm font-medium text-[#111827]">{workerLabel}</p>
-                <p className="text-xs text-[#6b7280]">Assigned worker</p>
+                <p className="text-xs text-[#6b7280]">Hero</p>
               </div>
             </div>
           ) : pendingNote ? (
@@ -218,7 +226,7 @@ export default function MyJobsPage() {
         <div className="mx-auto max-w-5xl px-6 py-10 text-center">
           <h1 className="text-3xl font-bold text-[#0f172a]">My Jobs</h1>
           <p className="mt-2 text-sm text-[#52606d]">
-            Track your requests, worker assignment, and job progress in one place.
+            Track your requests, Hero acceptance, and job progress in one place.
           </p>
         </div>
       </header>
@@ -257,7 +265,7 @@ export default function MyJobsPage() {
           <div className="rounded-[28px] border border-dashed border-[#c9d7cd] bg-white px-6 py-14 text-center">
             <h2 className="text-2xl font-semibold text-[#0f172a]">No jobs yet</h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#52606d]">
-              Once you book a yard service, it will appear here with its worker assignment and
+              Once you book a yard service, it will appear here with Hero acceptance and
               status updates.
             </p>
           </div>

@@ -53,12 +53,12 @@ const PRIVACY_POLICY_DEFAULT = {
         {
           title: "Job Matching",
           description:
-            "Connect customers with qualified workers based on location, skills, and availability.",
+            "Connect customers with qualified Heroes based on location, skills, and availability.",
         },
         {
           title: "Communication",
           description:
-            "Enable secure messaging between customers and workers for job coordination.",
+            "Enable secure messaging between customers and Heroes for job coordination.",
         },
         {
           title: "Payments",

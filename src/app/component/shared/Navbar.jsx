@@ -12,6 +12,7 @@ import {
   LifeBuoy,
   LoaderCircle,
   LogOut,
+  MessageCircle,
   SquareUserRound,
   UserPlus,
 } from "lucide-react";
@@ -36,6 +37,7 @@ const workerRoutes = [
   "/help-support",
   "/registration",
   "/terms-policy",
+  "/hero-agreement",
   "/profile",
   "/support",
 ];
@@ -56,6 +58,7 @@ const workerLinks = [
   { href: "/all-jobs", label: "All Jobs" },
   { href: "/payment", label: "Payment" },
   { href: "/terms-policy", label: "Terms & Policy" },
+  { href: "/hero-agreement", label: "Hero Agreement" },
 ];
 
 const getRoleDashboardHref = (role) => {
@@ -108,11 +111,11 @@ const getProfileHref = (user) => {
 
 const getRoleLabel = (user) => {
   if (isDualRoleUser(user)) {
-    return "Worker + Customer";
+    return "Hero + Customer";
   }
 
   if (hasRole(user, ROLES.WORKER)) {
-    return "Worker";
+    return "Hero";
   }
 
   if (hasRole(user, ROLES.CUSTOMER)) {
@@ -134,7 +137,7 @@ const getUserShortName = (user) => {
 
 const getAccountLabel = (user) => {
   if (getPrimaryRole(user) === ROLES.WORKER) {
-    return "Worker Home";
+    return "Hero Home";
   }
 
   if (hasRole(user, ROLES.CUSTOMER)) {
@@ -178,6 +181,10 @@ const getNotificationIcon = (notification) => {
     return CreditCard;
   }
 
+  if (notification?.category === "chat") {
+    return MessageCircle;
+  }
+
   if (notification?.category === "job" || notification?.category === "booking") {
     return BriefcaseBusiness;
   }
@@ -206,8 +213,8 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState([]);
   const [notificationsCount, setNotificationsCount] = useState(0);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
-  const isWorkerPage = workerRoutes.some((route) => pathname.startsWith(route));
-  const navLinks = isWorkerPage ? workerLinks : publicLinks;
+  const isHeroPage = workerRoutes.some((route) => pathname.startsWith(route));
+  const navLinks = isHeroPage ? workerLinks : publicLinks;
   const accountHref = getDefaultPathForUser(user);
   const profileHref = getProfileHref(user);
   const guestBookHref = buildLoginPath("/book");
@@ -216,16 +223,16 @@ export default function Navbar() {
       ? [{ href: "/myjobs", label: "Customer Dashboard", role: ROLES.CUSTOMER }]
       : []),
     ...(hasRole(user, ROLES.WORKER)
-      ? [{ href: "/worker-home", label: "Worker Dashboard", role: ROLES.WORKER }]
+      ? [{ href: "/worker-home", label: "Hero Dashboard", role: ROLES.WORKER }]
       : []),
   ];
   const roleToggleOptions = isDualRoleUser(user)
     ? [
         { role: ROLES.CUSTOMER, label: "Customer", href: "/myjobs" },
-        { role: ROLES.WORKER, label: "Worker", href: "/worker-home" },
+        { role: ROLES.WORKER, label: "Hero", href: "/worker-home" },
       ]
     : [];
-  const canBecomeWorker = hasRole(user, ROLES.CUSTOMER) && !hasRole(user, ROLES.WORKER);
+  const canBecomeHero = hasRole(user, ROLES.CUSTOMER) && !hasRole(user, ROLES.WORKER);
   const activeRole = user?.role || "";
 
   const closeMenus = () => {
@@ -641,14 +648,14 @@ export default function Navbar() {
                         </button>
                       ))}
 
-                      {canBecomeWorker ? (
+                      {canBecomeHero ? (
                         <button
                           type="button"
                           onClick={() => handleMenuNavigation("/registration")}
                           className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[#334155] transition-colors hover:bg-[#f6f8f6]"
                         >
                           <SquareUserRound className="h-4 w-4 text-[#0A3019]" />
-                          Become a Worker
+                          Become a Hero
                         </button>
                       ) : null}
 
@@ -667,7 +674,7 @@ export default function Navbar() {
                   ) : null}
                 </div>
               </>
-            ) : isWorkerPage ? (
+            ) : isHeroPage ? (
               <>
                 <Link
                   href="/login"
@@ -680,7 +687,7 @@ export default function Navbar() {
                   href="/registration"
                   className="whitespace-nowrap rounded-md bg-green-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-green-800"
                 >
-                  Apply as a Worker
+                  Apply as a Hero
                 </Link>
               </>
             ) : (
@@ -796,13 +803,13 @@ export default function Navbar() {
                     {link.label}
                   </button>
                 ))}
-                {canBecomeWorker ? (
+                {canBecomeHero ? (
                   <button
                     type="button"
                     onClick={() => handleMenuNavigation("/registration")}
                     className="block text-left text-gray-700 hover:text-green-700"
                   >
-                    Become a Worker
+                    Become a Hero
                   </button>
                 ) : null}
                 <button
@@ -814,13 +821,13 @@ export default function Navbar() {
                   {isInitializing ? "Logging Out..." : "Log Out"}
                 </button>
               </>
-            ) : isWorkerPage ? (
+            ) : isHeroPage ? (
               <>
                 <MobileLink href="/login" setOpen={setOpen}>
                   Login
                 </MobileLink>
                 <MobileLink href="/registration" setOpen={setOpen}>
-                  Apply as a Worker
+                  Apply as a Hero
                 </MobileLink>
               </>
             ) : (

@@ -11,8 +11,8 @@ import {
 } from "lucide-react";
 
 const storyParagraphs = [
-  "We started with a simple observation: elders and busy homeowners often struggle to find quick, reliable help for yard work. Whether it's mowing the lawn, raking leaves, or trimming hedges, finding trustworthy workers can be stressful and time-consuming.",
-  "At the same time, many young people in our communities want honest, flexible work that fits their schedules. They're eager to earn money, build skills, and help their neighbors.",
+  "We started with a simple observation: elders and busy homeowners often struggle to find quick, reliable help for yard work. Whether it's mowing the lawn, raking leaves, or trimming hedges, finding trustworthy Heroes can be stressful and time-consuming.",
+  "At the same time, many young people in our communities want honest, flexible work that fits their availability. They're eager to earn money, build skills, and help their neighbors.",
   "That's why we created this platform. We connect both sides safely and simply, making yard work accessible for everyone while creating real earning opportunities for hardworking young people.",
   "Our platform is built on trust, transparency, and community. We believe in fair pay, clear communication, and making life easier for everyone involved.",
 ];
@@ -54,7 +54,7 @@ const missionItems = [
   {
     title: "Create Fast Earning Opportunities",
     description:
-      "Give young people flexible jobs that fit their schedules and pay fairly.",
+      "Give young people flexible jobs that fit their availability and pay fairly.",
     Icon: EarningsMissionIcon,
   },
   {
@@ -69,21 +69,21 @@ const helpItems = [
   {
     title: "Homeowners & Elders",
     description:
-      "Get reliable help with your yard work without the hassle. Our platform makes it easy to book trusted local workers.",
+      "Get reliable help with your yard work without the hassle. Our platform makes it easy to book trusted local Heroes.",
     bullets: [
       "Reliable help when you need it",
       "Easy booking in just a few clicks",
       "Pay only after job completion",
-      "Vetted local workers you can trust",
+      "Vetted local Heroes you can trust",
     ],
     Icon: House,
   },
   {
-    title: "Workers",
+    title: "Heroes",
     description:
-      "Find flexible yard work jobs in your area and earn money on your own schedule. It's simple, safe, and rewarding.",
+      "Find flexible yard work jobs in your area and earn money around your availability. It's simple, safe, and rewarding.",
     bullets: [
-      "Flexible jobs that fit your schedule",
+      "Flexible jobs that fit your availability",
       "Fast payouts after each job",
       "Keep 88% of your earnings",
       "Build your reputation and skills",
@@ -94,8 +94,8 @@ const helpItems = [
 
 const reasonItems = [
   {
-    title: "Local Workers",
-    description: "Connect with trusted workers in your neighborhood",
+    title: "Local Heroes",
+    description: "Connect with trusted Heroes in your neighborhood",
     Icon: MapPin,
     titleClassName: "max-w-[156px]",
     descriptionClassName: "max-w-[156px]",

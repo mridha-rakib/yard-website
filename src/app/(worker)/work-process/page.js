@@ -241,7 +241,7 @@ const page = () => {
               </div>
               <div>
                 <h4 className="font-semibold text-gray-900 mb-1">
-                  Flexible schedule
+                  Flexible timing
                 </h4>
                 <p className="text-sm text-gray-600">Work when you want</p>
               </div>
@@ -304,7 +304,7 @@ const page = () => {
               <div>
                 <h4 className="font-semibold text-gray-900 mb-1">Clear pay</h4>
                 <p className="text-sm text-gray-600">
-                  Know exactly what you'll earn
+                  Know exactly what you&apos;ll earn
                 </p>
               </div>
             </div>

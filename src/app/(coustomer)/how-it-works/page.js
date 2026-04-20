@@ -22,15 +22,15 @@ const page = () => {
     },
     {
       icon: <FaUserCheck className="w-6 h-6" />,
-      title: "Get matched with an available, qualified local worker.",
+      title: "Get matched with an available, qualified local Hero.",
       description:
-        "We quickly match you with a qualified, nearby worker who can handle your specific yard work needs.",
+        "We quickly match you with a qualified, nearby Hero who can handle your specific yard work needs.",
     },
     {
       icon: <FaCheckCircle className="w-6 h-6" />,
       title: "The job is completed, reviewed, and finalized after quality approval.",
       description:
-        "Your worker arrives on time, completes the task professionally, and you pay after the job is finished.",
+        "Your Hero arrives on time, completes the task professionally, and you pay after the job is finished.",
     },
   ];
 
@@ -39,7 +39,7 @@ const page = () => {
       icon: <VscWorkspaceTrusted className="w-5 h-5" />,
       title: "Trusted & Safe",
       description:
-        "All workers are background checked and vetted for your peace of mind.",
+        "All Heroes are background checked and vetted for your peace of mind.",
     },
     {
        
@@ -56,12 +56,12 @@ const page = () => {
     },
     {
       icon: <IoLocationSharp className="w-5 h-5" />,
-      title: "Local Workers",
-      description: "Connect with experienced workers in your neighborhood.",
+      title: "Local Heroes",
+      description: "Connect with experienced Heroes in your neighborhood.",
     },
   ];
 
-  const workers = [
+  const Heroes = [
     {
       name: "Lawn Mowing",
       price: "August: $60",

@@ -1,26 +1,27 @@
-import Link from 'next/link'
-import React from 'react'
+import Link from "next/link";
+import React from "react";
 
 const Banner = () => {
   return (
-     <div className="bg-emerald-950 py-16 px-6 text-center text-white">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold mb-4">
-            Ready to Get Your Yard Work Done?
-          </h2>
-          <p className="text-emerald-200/80 mb-10 text-lg">
-            Join thousands of satisfied customers who trust us with their yard
-            care needs.
-          </p>
-          <Link href="/book">
-          <button className="bg-white text-emerald-950 px-10 py-4 rounded-md font-bold text-lg hover:bg-emerald-50 transition-all flex items-center justify-center gap-2 mx-auto">
-            {/* <Calendar size={20} /> */}
+    <div className="bg-emerald-950 px-6 py-16 text-center text-white">
+      <div className="mx-auto max-w-4xl">
+        <div className="inline-flex items-center rounded-full border border-emerald-700 bg-emerald-900/50 px-4 py-2 text-sm font-semibold text-emerald-100">
+          YardHero Guarantee: If the job is not done right, we fix it or refund it.
+        </div>
+        <h2 className="mb-4 mt-5 text-3xl font-bold">
+          Ready to book with fixed pricing and proof-based trust?
+        </h2>
+        <p className="mb-10 text-lg text-emerald-200/80">
+          Customers see the price before checkout. Workers submit photo and video proof before payout release.
+        </p>
+        <Link href="/book">
+          <button className="mx-auto flex items-center justify-center gap-2 rounded-md bg-white px-10 py-4 text-lg font-bold text-emerald-950 transition-all hover:bg-emerald-50">
             Book Your Service Now
           </button>
-           </Link>
-        </div>
+        </Link>
       </div>
-  )
-}
+    </div>
+  );
+};
 
-export default Banner
+export default Banner;

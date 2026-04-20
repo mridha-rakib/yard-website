@@ -1,13 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { Check, Upload, X } from "lucide-react";
+import { Suspense, useMemo, useState } from "react";
+import { Check, ShieldCheck, Upload, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  buildPathWithSearchParams,
-} from "@/lib/auth/auth-redirect";
+import { buildPathWithSearchParams } from "@/lib/auth/auth-redirect";
 import { getApiErrorMessage } from "@/lib/api/http";
-import { contentApi } from "@/lib/api/content-api";
 import { paymentApi } from "@/lib/api/payment-api";
 import { useRequiredRole } from "@/lib/auth/use-required-role";
 import {
@@ -15,46 +12,99 @@ import {
   getSelectedServiceFromSearchParams,
 } from "@/lib/booking-service";
 import {
+  calculateServiceQuote,
   clonePricingCategories,
   formatPrice,
-  normalizePricingCategories,
-  PRICING_CONTENT_KEY,
+  getServiceDefinition,
+  isFixedPriceService,
+  isMulchingService,
+  requiresSquareFootage,
 } from "@/lib/pricing-content";
+
+const createInitialFormData = () => ({
+  fullName: null,
+  email: null,
+  streetAddress: "",
+  city: "",
+  state: "",
+  zipCode: "",
+  jobDescription: "",
+  urgency: "flexible",
+  preferredDate: "",
+  preferredTime: "anytime",
+  sqft: "",
+  depthIn: "3",
+});
+
+const toDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("We could not process that file."));
+    reader.readAsDataURL(file);
+  });
 
 function BookYardWorkFormContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [formData, setFormData] = useState({
-    fullName: null,
-    email: null,
-    streetAddress: "",
-    city: "",
-    zipCode: "",
-    stateCountry: "",
-    urgency: "flexible",
-    preferredDate: "",
-    preferredTime: "anytime",
-  });
-
-  const [uploadedPhotos, setUploadedPhotos] = useState([]);
-  const [errors, setErrors] = useState({});
-  const [submitError, setSubmitError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pricingCategories, setPricingCategories] = useState(() => clonePricingCategories());
-  const [pricingLoadError, setPricingLoadError] = useState("");
-  const selectedService = useMemo(
+  const selectedServiceFromQuery = useMemo(
     () => getSelectedServiceFromSearchParams(searchParams),
     [searchParams]
   );
+  const categories = useMemo(() => clonePricingCategories(), []);
+  const flattenedServices = useMemo(
+    () =>
+      categories.flatMap((category) =>
+        category.services.map((service) => ({
+          ...service,
+          categoryId: category.id,
+          categoryLabel: category.label,
+          optionValue: `${category.id}::${service.id}`,
+        }))
+      ),
+    [categories]
+  );
+  const matchedService = useMemo(() => {
+    const fromId = getServiceDefinition({ id: selectedServiceFromQuery.id });
+
+    if (fromId) {
+      return fromId;
+    }
+
+    return getServiceDefinition({ title: selectedServiceFromQuery.title });
+  }, [selectedServiceFromQuery.id, selectedServiceFromQuery.title]);
+  const effectiveSelectedService = useMemo(() => {
+    if (!matchedService) {
+      return null;
+    }
+
+    return {
+      ...matchedService,
+      categoryId: matchedService.categoryId || selectedServiceFromQuery.categoryId || "",
+      categoryLabel:
+        matchedService.categoryLabel || selectedServiceFromQuery.categoryLabel || "Pricing",
+    };
+  }, [
+    matchedService,
+    selectedServiceFromQuery.categoryId,
+    selectedServiceFromQuery.categoryLabel,
+  ]);
+  const serviceSelectValue = effectiveSelectedService
+    ? `${effectiveSelectedService.categoryId}::${effectiveSelectedService.id}`
+    : "";
   const bookingPath = useMemo(
     () => buildPathWithSearchParams(pathname, searchParams),
     [pathname, searchParams]
   );
-  const { user, isAuthenticated, isReady, isRoleReady } = useRequiredRole(
-    "customer",
-    bookingPath
-  );
+  const { user, isRoleReady } = useRequiredRole("customer", bookingPath);
+  const [formData, setFormData] = useState(createInitialFormData);
+  const [uploadedPhotos, setUploadedPhotos] = useState([]);
+  const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPreparingFiles, setIsPreparingFiles] = useState(false);
+
   const contactDetails = useMemo(
     () => ({
       fullName: (formData.fullName ?? user?.name ?? "").trim(),
@@ -62,97 +112,55 @@ function BookYardWorkFormContent() {
     }),
     [formData.email, formData.fullName, user]
   );
-  const flattenedServices = useMemo(
-    () =>
-      pricingCategories.flatMap((category) =>
-        (category.services || []).map((service) => ({
-          ...service,
-          categoryId: category.id,
-          categoryLabel: category.label,
-          optionValue: `${category.id}::${service.id || service.title}`,
-        }))
-      ),
-    [pricingCategories]
-  );
-  const matchedSelectedService = useMemo(() => {
-    if (selectedService.id) {
-      const exactMatch = flattenedServices.find((service) => service.id === selectedService.id);
 
-      if (exactMatch) {
-        return exactMatch;
-      }
-    }
-
-    if (!selectedService.title) {
+  const numericSqft = Number(formData.sqft || 0);
+  const numericDepthIn = Number(formData.depthIn || 0);
+  const quote = useMemo(() => {
+    if (!effectiveSelectedService) {
       return null;
     }
 
-    return (
-      flattenedServices.find(
-        (service) =>
-          service.title === selectedService.title &&
-          (!selectedService.categoryId || service.categoryId === selectedService.categoryId)
-      ) || null
-    );
-  }, [flattenedServices, selectedService.categoryId, selectedService.id, selectedService.title]);
-  const effectiveSelectedService = matchedSelectedService || selectedService;
-  const serviceSelectValue = matchedSelectedService?.optionValue || "";
-  const hasSelectedService = Boolean(
-    effectiveSelectedService.id || effectiveSelectedService.title
-  );
+    return calculateServiceQuote(effectiveSelectedService, {
+      sqft: numericSqft,
+      depthIn: numericDepthIn || effectiveSelectedService.defaultDepthIn || 3,
+    });
+  }, [effectiveSelectedService, numericDepthIn, numericSqft]);
 
-  useEffect(() => {
-    let ignore = false;
-
-    const loadPricingContent = async () => {
-      setPricingLoadError("");
-
-      try {
-        const content = await contentApi.getContentByKey(PRICING_CONTENT_KEY);
-
-        if (ignore) {
-          return;
-        }
-
-        setPricingCategories(normalizePricingCategories(content?.value?.categories));
-      } catch (error) {
-        if (ignore) {
-          return;
-        }
-
-        if (error?.response?.status !== 404) {
-          setPricingLoadError("Showing default service options because live pricing could not be loaded.");
-        }
-      }
-    };
-
-    loadPricingContent();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const hasSelectedService = Boolean(effectiveSelectedService?.id);
+  const sqftRequired = requiresSquareFootage(effectiveSelectedService);
+  const mulchService = isMulchingService(effectiveSelectedService);
+  const fixedPriceService = isFixedPriceService(effectiveSelectedService);
+  const finalPrice = Number(quote?.finalPrice || effectiveSelectedService?.price || 0);
 
   if (!isRoleReady) {
     return <div className="min-h-screen bg-gray-50 py-8 px-4" />;
   }
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((currentValue) => ({
+      ...currentValue,
+      [name]: value,
+    }));
+
     if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
+      setErrors((currentValue) => ({
+        ...currentValue,
+        [name]: "",
+      }));
     }
+
     if (submitError) {
       setSubmitError("");
     }
   };
 
-  const handleServiceSelectionChange = (e) => {
-    const { value } = e.target;
+  const handleServiceSelectionChange = (event) => {
+    const nextValue = event.target.value;
     const nextParams = new URLSearchParams(searchParams.toString());
 
-    if (!value) {
+    if (!nextValue) {
       [
         "serviceId",
         "serviceTitle",
@@ -163,7 +171,7 @@ function BookYardWorkFormContent() {
         "categoryLabel",
       ].forEach((key) => nextParams.delete(key));
     } else {
-      const nextService = flattenedServices.find((service) => service.optionValue === value);
+      const nextService = flattenedServices.find((service) => service.optionValue === nextValue);
 
       if (!nextService) {
         return;
@@ -174,9 +182,9 @@ function BookYardWorkFormContent() {
         label: nextService.categoryLabel,
       });
 
-      Object.entries(nextQuery).forEach(([key, queryValue]) => {
-        if (queryValue) {
-          nextParams.set(key, queryValue);
+      Object.entries(nextQuery).forEach(([key, value]) => {
+        if (value) {
+          nextParams.set(key, value);
         } else {
           nextParams.delete(key);
         }
@@ -187,93 +195,140 @@ function BookYardWorkFormContent() {
     router.replace(nextUrl);
 
     if (errors.serviceSelection) {
-      setErrors((prev) => ({ ...prev, serviceSelection: "" }));
+      setErrors((currentValue) => ({
+        ...currentValue,
+        serviceSelection: "",
+      }));
     }
-
-    if (submitError) {
-      setSubmitError("");
-    }
   };
 
-  const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files);
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const newPhoto = {
-          id: Math.random().toString(36).substr(2, 9),
-          name: file.name,
-          url: reader.result,
-          file,
-        };
-        setUploadedPhotos((prev) => [...prev, newPhoto]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
+  const handleFileUpload = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
 
-  const removePhoto = (id) => {
-    setUploadedPhotos((prev) => prev.filter((photo) => photo.id !== id));
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!hasSelectedService) newErrors.serviceSelection = "Please select a service";
-    if (!contactDetails.fullName) newErrors.fullName = "Full name is required";
-    if (!contactDetails.email) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(contactDetails.email))
-      newErrors.email = "Invalid email format";
-    if (!formData.streetAddress.trim())
-      newErrors.streetAddress = "Street address is required";
-    if (!formData.city.trim()) newErrors.city = "City is required";
-    if (!formData.zipCode.trim()) newErrors.zipCode = "ZIP code is required";
-    if (!formData.stateCountry.trim())
-      newErrors.stateCountry = "Job description is required";
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!validateForm()) {
+    if (!files.length) {
       return;
     }
 
-    const resolvedServiceTitle = effectiveSelectedService.title || "Yard Work Request";
-    const resolvedServiceType =
-      effectiveSelectedService.id || effectiveSelectedService.categoryId || "yard-work";
+    setIsPreparingFiles(true);
+    setSubmitError("");
+
+    try {
+      const nextPhotos = await Promise.all(
+        files.map(async (file) => ({
+          id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name: file.name,
+          url: await toDataUrl(file),
+        }))
+      );
+
+      setUploadedPhotos((currentValue) => [...currentValue, ...nextPhotos]);
+    } catch (error) {
+      setSubmitError(error?.message || "We could not prepare those photos.");
+    } finally {
+      setIsPreparingFiles(false);
+    }
+  };
+
+  const removePhoto = (photoId) => {
+    setUploadedPhotos((currentValue) =>
+      currentValue.filter((photo) => photo.id !== photoId)
+    );
+  };
+
+  const validateForm = () => {
+    const nextErrors = {};
+
+    if (!hasSelectedService) {
+      nextErrors.serviceSelection = "Please select a service.";
+    }
+
+    if (!contactDetails.fullName) {
+      nextErrors.fullName = "Full name is required.";
+    }
+
+    if (!contactDetails.email) {
+      nextErrors.email = "Email is required.";
+    } else if (!/\S+@\S+\.\S+/.test(contactDetails.email)) {
+      nextErrors.email = "Enter a valid email address.";
+    }
+
+    if (!formData.streetAddress.trim()) {
+      nextErrors.streetAddress = "Street address is required.";
+    }
+
+    if (!formData.city.trim()) {
+      nextErrors.city = "City is required.";
+    }
+
+    if (!formData.zipCode.trim()) {
+      nextErrors.zipCode = "ZIP code is required.";
+    }
+
+    if (!formData.jobDescription.trim()) {
+      nextErrors.jobDescription = "Describe what needs to be done.";
+    }
+
+    if (sqftRequired && numericSqft <= 0) {
+      nextErrors.sqft = "Square footage is required for this service.";
+    }
+
+    if (mulchService && numericDepthIn <= 0) {
+      nextErrors.depthIn = "Depth must be greater than zero.";
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm() || !effectiveSelectedService || !quote) {
+      return;
+    }
 
     setIsSubmitting(true);
     setSubmitError("");
 
     try {
       const checkoutSession = await paymentApi.createJobCheckoutSession({
-        amount: estimatedTotal,
-        description: `${resolvedServiceTitle} booking authorization`,
+        amount: finalPrice,
+        description: `${effectiveSelectedService.title} secure hold authorization`,
         cancelUrl: bookingPath,
-        serviceId: effectiveSelectedService.id || "",
+        serviceId: effectiveSelectedService.id,
+        pricingInput: quote.input,
         jobData: {
-          title: resolvedServiceTitle,
-          serviceType: resolvedServiceType,
+          title: effectiveSelectedService.title,
+          serviceId: effectiveSelectedService.id,
+          serviceType: effectiveSelectedService.title,
+          serviceTitle: effectiveSelectedService.title,
+          serviceCategoryId: effectiveSelectedService.categoryId,
+          serviceCategoryLabel: effectiveSelectedService.categoryLabel,
           fullName: contactDetails.fullName,
           email: contactDetails.email,
           streetAddress: formData.streetAddress.trim(),
           city: formData.city.trim(),
+          state: formData.state.trim(),
           zipCode: formData.zipCode.trim(),
-          description: formData.stateCountry.trim(),
+          description: formData.jobDescription.trim(),
           urgency: formData.urgency,
           preferredDate: formData.preferredDate || null,
           preferredTime: formData.preferredTime,
-          estimatedPrice: estimatedTotal,
-          photoUrls: uploadedPhotos
-            .map((photo) => photo.url)
-            .filter(Boolean),
+          estimatedPrice: finalPrice,
+          priceQuoted: finalPrice,
+          pricing: {
+            serviceId: effectiveSelectedService.id,
+            serviceTitle: effectiveSelectedService.title,
+            categoryId: effectiveSelectedService.categoryId,
+            categoryLabel: effectiveSelectedService.categoryLabel,
+            ...quote,
+          },
+          pricingInput: quote.input,
+          photoUrls: uploadedPhotos.map((photo) => photo.url).filter(Boolean),
         },
       });
 
       if (!checkoutSession?.url) {
-        throw new Error("Stripe checkout URL is missing");
+        throw new Error("Stripe checkout URL is missing.");
       }
 
       window.location.assign(checkoutSession.url);
@@ -283,577 +338,478 @@ function BookYardWorkFormContent() {
     }
   };
 
-  const estimatedTotal = hasSelectedService ? Number(effectiveSelectedService.price || 0) : 0;
-
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
+      <div className="mx-auto max-w-7xl">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Book Yard Work
-          </h1>
-          <p className="text-gray-600 mb-4">
-            Tell us what you need — we&apos;ll handle the rest.
-          </p>
-          <div className="flex justify-center gap-6 text-sm text-gray-600">
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <span>You start the conversion</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>Fast local workers</span>
-            </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-800">
+            <ShieldCheck className="h-4 w-4" />
+            YardHero Guarantee: If the job is not done right, we fix it or refund it.
           </div>
+          <h1 className="mt-5 text-3xl font-bold text-gray-900 md:text-4xl">
+            Book with automatic pricing, proof-based verification, and zero negotiation
+          </h1>
+          <p className="mt-3 text-gray-600">
+            Upload a few photos, describe the work, enter the size, and YardHero calculates the final price before checkout.
+          </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main Form */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-6">
-            <div>
-              <div className="mb-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Service Selection
-                </h2>
-
-                <div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 rounded-lg bg-white p-6 shadow-sm">
+            <div className="space-y-8">
+              <section>
+                <h2 className="text-lg font-semibold text-gray-900">Service Selection</h2>
+                <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Choose Service *
                   </label>
                   <select
                     value={serviceSelectValue}
                     onChange={handleServiceSelectionChange}
-                    className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${
+                    className={`w-full rounded-md border px-4 py-2 outline-none focus:ring-2 focus:ring-green-700 ${
                       errors.serviceSelection ? "border-red-500" : "border-gray-300"
                     }`}
                   >
-                    <option value="">Select a service and price</option>
-                    {pricingCategories.map((category) =>
-                      Array.isArray(category.services) && category.services.length > 0 ? (
-                        <optgroup key={category.id} label={category.label}>
-                          {category.services.map((service) => (
-                            <option
-                              key={`${category.id}-${service.id || service.title}`}
-                              value={`${category.id}::${service.id || service.title}`}
-                            >
-                              {`${service.title} - $${formatPrice(service.price)} starting`}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ) : null
-                    )}
+                    <option value="">Select a service</option>
+                    {categories.map((category) => (
+                      <optgroup key={category.id} label={category.label}>
+                        {category.services.map((service) => (
+                          <option
+                            key={service.id}
+                            value={`${category.id}::${service.id}`}
+                          >{`${service.title} - ${service.pricingSummary}`}</option>
+                        ))}
+                      </optgroup>
+                    ))}
                   </select>
                   {errors.serviceSelection ? (
                     <p className="mt-1 text-sm text-red-600">{errors.serviceSelection}</p>
                   ) : null}
-                  {pricingLoadError ? (
-                    <p className="mt-2 text-sm text-amber-600">{pricingLoadError}</p>
-                  ) : (
-                    <p className="mt-2 text-sm text-gray-500">
-                      Each option shows the current starting price for that service.
-                    </p>
-                  )}
+                  {effectiveSelectedService ? (
+                    <div className="mt-4 rounded-lg border border-green-100 bg-green-50 p-4">
+                      <p className="text-sm font-semibold text-green-900">
+                        {effectiveSelectedService.title}
+                      </p>
+                      <p className="mt-1 text-sm text-green-800">
+                        {effectiveSelectedService.description}
+                      </p>
+                      <p className="mt-2 text-xs font-medium uppercase tracking-[0.16em] text-green-700">
+                        {effectiveSelectedService.pricingSummary}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
-              </div>
+              </section>
 
-              {/* Contact Details */}
-              <div className="mb-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Contact Details
-                </h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Full Name *
+              <section>
+                <h2 className="text-lg font-semibold text-gray-900">Service Measurement</h2>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  {fixedPriceService ? (
+                    <div className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                      This service uses a fixed price. No square-foot measurement is needed.
+                    </div>
+                  ) : null}
+
+                  {!fixedPriceService ? (
+                    <label className="text-sm font-medium text-gray-700">
+                      Approximate Square Footage {sqftRequired ? "*" : "(Optional)"}
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        name="sqft"
+                        value={formData.sqft}
+                        onChange={handleChange}
+                        placeholder={mulchService ? "Leave blank to default to 5 yards" : "Enter service area in sq ft"}
+                        className={`mt-2 w-full rounded-md border px-4 py-2 outline-none focus:ring-2 focus:ring-green-700 ${
+                          errors.sqft ? "border-red-500" : "border-gray-300"
+                        }`}
+                      />
+                      {errors.sqft ? (
+                        <p className="mt-1 text-sm text-red-600">{errors.sqft}</p>
+                      ) : null}
                     </label>
+                  ) : null}
+
+                  {mulchService ? (
+                    <label className="text-sm font-medium text-gray-700">
+                      Mulch Depth (inches)
+                      <input
+                        type="number"
+                        min="1"
+                        step="0.5"
+                        name="depthIn"
+                        value={formData.depthIn}
+                        onChange={handleChange}
+                        className={`mt-2 w-full rounded-md border px-4 py-2 outline-none focus:ring-2 focus:ring-green-700 ${
+                          errors.depthIn ? "border-red-500" : "border-gray-300"
+                        }`}
+                      />
+                      {errors.depthIn ? (
+                        <p className="mt-1 text-sm text-red-600">{errors.depthIn}</p>
+                      ) : null}
+                    </label>
+                  ) : null}
+                </div>
+              </section>
+
+              <section>
+                <h2 className="text-lg font-semibold text-gray-900">Contact Details</h2>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Full Name *
                     <input
                       type="text"
                       name="fullName"
                       value={formData.fullName ?? user?.name ?? ""}
                       onChange={handleChange}
-                      className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${
+                      className={`mt-2 w-full rounded-md border px-4 py-2 outline-none focus:ring-2 focus:ring-green-700 ${
                         errors.fullName ? "border-red-500" : "border-gray-300"
                       }`}
                     />
-                    {errors.fullName && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.fullName}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email *
-                    </label>
+                    {errors.fullName ? (
+                      <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
+                    ) : null}
+                  </label>
+
+                  <label className="text-sm font-medium text-gray-700">
+                    Email *
                     <input
                       type="email"
                       name="email"
-                      placeholder="email@email.com"
                       value={formData.email ?? user?.email ?? ""}
                       onChange={handleChange}
-                      className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${
+                      className={`mt-2 w-full rounded-md border px-4 py-2 outline-none focus:ring-2 focus:ring-green-700 ${
                         errors.email ? "border-red-500" : "border-gray-300"
                       }`}
                     />
-                    {errors.email && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.email}
-                      </p>
-                    )}
-                    <p className="mt-2 text-sm text-gray-500">
-                      We&apos;ll contact you about this booking by email only.
-                    </p>
-                  </div>
+                    {errors.email ? (
+                      <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                    ) : null}
+                  </label>
                 </div>
-              </div>
+              </section>
 
-              {/* Job Location */}
-              <div className="mb-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Job Location
-                </h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Street Address *
-                    </label>
+              <section>
+                <h2 className="text-lg font-semibold text-gray-900">Job Location</h2>
+                <div className="mt-4 space-y-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Street Address *
                     <input
                       type="text"
                       name="streetAddress"
                       value={formData.streetAddress}
                       onChange={handleChange}
-                      className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${
-                        errors.streetAddress
-                          ? "border-red-500"
-                          : "border-gray-300"
+                      className={`mt-2 w-full rounded-md border px-4 py-2 outline-none focus:ring-2 focus:ring-green-700 ${
+                        errors.streetAddress ? "border-red-500" : "border-gray-300"
                       }`}
                     />
-                    {errors.streetAddress && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.streetAddress}
-                      </p>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        City *
-                      </label>
+                    {errors.streetAddress ? (
+                      <p className="mt-1 text-sm text-red-600">{errors.streetAddress}</p>
+                    ) : null}
+                  </label>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <label className="text-sm font-medium text-gray-700">
+                      City *
                       <input
                         type="text"
                         name="city"
                         value={formData.city}
                         onChange={handleChange}
-                        className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${
+                        className={`mt-2 w-full rounded-md border px-4 py-2 outline-none focus:ring-2 focus:ring-green-700 ${
                           errors.city ? "border-red-500" : "border-gray-300"
                         }`}
                       />
-                      {errors.city && (
-                        <p className="mt-1 text-sm text-red-600">
-                          {errors.city}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        ZIP Code *
-                      </label>
+                      {errors.city ? (
+                        <p className="mt-1 text-sm text-red-600">{errors.city}</p>
+                      ) : null}
+                    </label>
+
+                    <label className="text-sm font-medium text-gray-700">
+                      State
+                      <input
+                        type="text"
+                        name="state"
+                        value={formData.state}
+                        onChange={handleChange}
+                        className="mt-2 w-full rounded-md border border-gray-300 px-4 py-2 outline-none focus:ring-2 focus:ring-green-700"
+                      />
+                    </label>
+
+                    <label className="text-sm font-medium text-gray-700">
+                      ZIP Code *
                       <input
                         type="text"
                         name="zipCode"
                         value={formData.zipCode}
                         onChange={handleChange}
-                        className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${
+                        className={`mt-2 w-full rounded-md border px-4 py-2 outline-none focus:ring-2 focus:ring-green-700 ${
                           errors.zipCode ? "border-red-500" : "border-gray-300"
                         }`}
                       />
-                      {errors.zipCode && (
-                        <p className="mt-1 text-sm text-red-600">
-                          {errors.zipCode}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Job Description *
+                      {errors.zipCode ? (
+                        <p className="mt-1 text-sm text-red-600">{errors.zipCode}</p>
+                      ) : null}
                     </label>
-                    <textarea
-                      type="text"
-                      name="stateCountry"
-                      placeholder="Describe what needs to be done, yard size, specific"
-                      value={formData.stateCountry}
-                      onChange={handleChange}
-                      className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none ${
-                        errors.stateCountry
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      }`}
-                    />
-                    {errors.stateCountry && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.stateCountry}
-                      </p>
-                    )}
                   </div>
                 </div>
-              </div>
+              </section>
 
-              {/* Timing & Urgency */}
-              <div className="mb-8">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Timing & Urgency
-                </h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Urgency *
-                    </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center cursor-pointer">
+              <section>
+                <h2 className="text-lg font-semibold text-gray-900">Describe the Work</h2>
+                <label className="mt-4 block text-sm font-medium text-gray-700">
+                  Job Description *
+                  <textarea
+                    rows={5}
+                    name="jobDescription"
+                    value={formData.jobDescription}
+                    onChange={handleChange}
+                    placeholder="Describe the lawn, bushes, gutters, mulch area, or anything else the Hero should know."
+                    className={`mt-2 w-full rounded-md border px-4 py-3 outline-none focus:ring-2 focus:ring-green-700 ${
+                      errors.jobDescription ? "border-red-500" : "border-gray-300"
+                    }`}
+                  />
+                  {errors.jobDescription ? (
+                    <p className="mt-1 text-sm text-red-600">{errors.jobDescription}</p>
+                  ) : null}
+                </label>
+              </section>
+
+              <section>
+                <h2 className="text-lg font-semibold text-gray-900">Timing and Urgency</h2>
+                <div className="mt-4 space-y-4">
+                  <div className="space-y-2">
+                    {[
+                      { value: "today", label: "Today" },
+                      { value: "within24", label: "Within 24 hours" },
+                      { value: "flexible", label: "Flexible" },
+                    ].map((option) => (
+                      <label key={option.value} className="flex items-center gap-2 text-sm text-gray-700">
                         <input
                           type="radio"
                           name="urgency"
-                          value="today"
-                          checked={formData.urgency === "today"}
+                          value={option.value}
+                          checked={formData.urgency === option.value}
                           onChange={handleChange}
-                          className="w-4 h-4 text-blue-600"
                         />
-                        <span className="ml-2 text-gray-700">Today</span>
+                        <span>{option.label}</span>
                       </label>
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="urgency"
-                          value="within24"
-                          checked={formData.urgency === "within24"}
-                          onChange={handleChange}
-                          className="w-4 h-4 text-blue-600"
-                        />
-                        <span className="ml-2 text-gray-700">
-                          Within 24 hours
-                        </span>
-                      </label>
-                      <label className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="urgency"
-                          value="flexible"
-                          checked={formData.urgency === "flexible"}
-                          onChange={handleChange}
-                          className="w-4 h-4 text-blue-600"
-                        />
-                        <span className="ml-2 text-gray-700">Flexible</span>
-                      </label>
-                    </div>
+                    ))}
                   </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Preferred Date
-                      </label>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Preferred Date
                       <input
                         type="date"
                         name="preferredDate"
                         value={formData.preferredDate}
                         onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                        className="mt-2 w-full rounded-md border border-gray-300 px-4 py-2 outline-none focus:ring-2 focus:ring-green-700"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Preferred Time
-                      </label>
+                    </label>
+
+                    <label className="text-sm font-medium text-gray-700">
+                      Preferred Time
                       <select
                         name="preferredTime"
                         value={formData.preferredTime}
                         onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                        className="mt-2 w-full rounded-md border border-gray-300 px-4 py-2 outline-none focus:ring-2 focus:ring-green-700"
                       >
                         <option value="anytime">Any time</option>
                         <option value="morning">Morning (8am - 12pm)</option>
-                        <option value="afternoon">
-                          Afternoon (12pm - 5pm)
-                        </option>
+                        <option value="afternoon">Afternoon (12pm - 5pm)</option>
                         <option value="evening">Evening (5pm - 8pm)</option>
                       </select>
-                    </div>
+                    </label>
                   </div>
                 </div>
-              </div>
+              </section>
 
-              {/* Upload Photos */}
-              <div className="mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Upload Photos (Optional)
-                </h2>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer">
+              <section>
+                <h2 className="text-lg font-semibold text-gray-900">Upload Photos</h2>
+                <p className="mt-2 text-sm text-gray-500">
+                  Photos are optional, but they increase trust and help the assigned Hero understand the work before arrival.
+                </p>
+                <div className="mt-4 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
                   <input
+                    id="job-photo-upload"
                     type="file"
                     accept="image/*"
                     multiple
                     onChange={handleFileUpload}
                     className="hidden"
-                    id="photo-upload"
                   />
-                  <label htmlFor="photo-upload" className="cursor-pointer">
-                    <Upload className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-                    <p className="text-gray-600">
-                      Drag and drop photos here, or click to select
-                    </p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      Photos can support upload clarity
+                  <label htmlFor="job-photo-upload" className="cursor-pointer">
+                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                    <p className="mt-3 text-gray-700">
+                      {isPreparingFiles ? "Preparing photos..." : "Click to upload lawn, gutter, bush, or area photos"}
                     </p>
                   </label>
                 </div>
 
-                {uploadedPhotos.length > 0 && (
-                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+                {uploadedPhotos.length ? (
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
                     {uploadedPhotos.map((photo) => (
-                      <div key={photo.id} className="relative group">
-                        <img
-                          src={photo.url}
-                          alt={photo.name}
-                          className="w-full h-24 object-cover rounded-lg"
-                        />
+                      <div key={photo.id} className="relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                        <img src={photo.url} alt={photo.name} className="h-28 w-full object-cover" />
                         <button
+                          type="button"
                           onClick={() => removePhoto(photo.id)}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute right-2 top-2 rounded-full bg-white p-1 text-red-600 shadow"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="h-4 w-4" />
                         </button>
-                        <p className="text-xs text-gray-600 mt-1 truncate">
-                          {photo.name}
-                        </p>
+                        <p className="truncate px-3 py-2 text-xs text-gray-600">{photo.name}</p>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+                ) : null}
+              </section>
             </div>
           </div>
 
-          {/* Price Estimate Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg p-6 shadow-sm lg:sticky lg:top-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Price Estimate
-              </h2>
+            <div className="sticky top-4 rounded-lg bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-900">Automatic Price Summary</h2>
 
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Selected Service:</span>
-                  <span className="font-medium text-right">
-                    {hasSelectedService
-                      ? effectiveSelectedService.title
-                      : "Choose a service from pricing"}
-                  </span>
+              <div className="mt-5 space-y-4">
+                <div className="rounded-lg border border-green-100 bg-green-50 p-4 text-sm text-green-800">
+                  <p className="font-semibold">No confusion. No negotiation. No surprises.</p>
+                  <p className="mt-2">
+                    We compare the minimum price with the calculator result and charge the higher number.
+                  </p>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Category:</span>
-                  <span className="font-medium text-right">
-                    {hasSelectedService
-                      ? effectiveSelectedService.categoryLabel || "Pricing"
-                      : "Not selected"}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Duration:</span>
-                  <span className="font-medium text-right">
-                    {hasSelectedService
-                      ? effectiveSelectedService.duration || "Not specified"
-                      : "Not selected"}
-                  </span>
-                </div>
-                <div className="border-t pt-3">
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold">Estimated Total:</span>
-                    <span className="text-3xl font-bold text-gray-900">
-                      ${formatPrice(estimatedTotal)}
-                    </span>
+
+                {effectiveSelectedService ? (
+                  <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-600">Service</span>
+                      <span className="text-right font-medium text-gray-900">
+                        {effectiveSelectedService.title}
+                      </span>
+                    </div>
+
+                    {fixedPriceService ? (
+                      <div className="flex justify-between gap-4">
+                        <span className="text-gray-600">Fixed price</span>
+                        <span className="font-medium text-gray-900">
+                          ${formatPrice(quote?.fixedPrice)}
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {sqftRequired ? (
+                      <>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-600">Minimum price</span>
+                          <span className="font-medium text-gray-900">
+                            ${formatPrice(quote?.minimumPrice)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-600">Rate</span>
+                          <span className="font-medium text-gray-900">
+                            ${effectiveSelectedService.unitRate}/sq ft
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-600">Entered size</span>
+                          <span className="font-medium text-gray-900">
+                            {numericSqft > 0 ? `${formatPrice(numericSqft)} sq ft` : "Not entered"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-600">Calculator result</span>
+                          <span className="font-medium text-gray-900">
+                            ${formatPrice(quote?.calculatedPrice)}
+                          </span>
+                        </div>
+                      </>
+                    ) : null}
+
+                    {mulchService ? (
+                      <>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-600">Depth</span>
+                          <span className="font-medium text-gray-900">
+                            {formatPrice(quote?.input?.depthIn)} in
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-600">Minimum yards</span>
+                          <span className="font-medium text-gray-900">
+                            {formatPrice(quote?.minimumYards)} yards
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-600">Chargeable yards</span>
+                          <span className="font-medium text-gray-900">
+                            {formatPrice(quote?.measurement?.chargeableYards)} yards
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-gray-600">Rate</span>
+                          <span className="font-medium text-gray-900">
+                            ${formatPrice(quote?.unitRate)}/yard
+                          </span>
+                        </div>
+                      </>
+                    ) : null}
+
+                    <div className="border-t border-gray-200 pt-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-gray-900">Final price</span>
+                        <span className="text-3xl font-bold text-gray-900">
+                          ${formatPrice(finalPrice)}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500">{quote?.summary}</p>
+                    </div>
                   </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+                    Select a service to preview the automatic YardHero price.
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {[
+                    "Your payment method is secured up front through Stripe.",
+                    "Funds stay on hold until the worker submits proof and YardHero approves the job.",
+                    "Workers must upload both a verification photo and video before payout release.",
+                  ].map((item) => (
+                    <div key={item} className="flex items-start gap-2 text-sm text-gray-700">
+                      <div className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-green-600">
+                        <Check className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <p>{item}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {hasSelectedService ? (
-                <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                    Selected From Pricing
-                  </div>
-                  <p className="mt-2 text-sm font-medium text-gray-900">
-                    {effectiveSelectedService.title}
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-gray-600">
-                    {effectiveSelectedService.description || "Service details will appear here."}
-                  </p>
-                </div>
-              ) : null}
-
-              <div className="space-y-3 mb-6">
-                <div className="flex items-start gap-2 text-sm">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <g clip-path="url(#clip0_375_460)">
-                      <path
-                        d="M10 20C12.6522 20 15.1957 18.9464 17.0711 17.0711C18.9464 15.1957 20 12.6522 20 10C20 7.34784 18.9464 4.8043 17.0711 2.92893C15.1957 1.05357 12.6522 0 10 0C7.34784 0 4.8043 1.05357 2.92893 2.92893C1.05357 4.8043 0 7.34784 0 10C0 12.6522 1.05357 15.1957 2.92893 17.0711C4.8043 18.9464 7.34784 20 10 20ZM8.4375 13.125H9.375V10.625H8.4375C7.91797 10.625 7.5 10.207 7.5 9.6875C7.5 9.16797 7.91797 8.75 8.4375 8.75H10.3125C10.832 8.75 11.25 9.16797 11.25 9.6875V13.125H11.5625C12.082 13.125 12.5 13.543 12.5 14.0625C12.5 14.582 12.082 15 11.5625 15H8.4375C7.91797 15 7.5 14.582 7.5 14.0625C7.5 13.543 7.91797 13.125 8.4375 13.125ZM10 5C10.3315 5 10.6495 5.1317 10.8839 5.36612C11.1183 5.60054 11.25 5.91848 11.25 6.25C11.25 6.58152 11.1183 6.89946 10.8839 7.13388C10.6495 7.3683 10.3315 7.5 10 7.5C9.66848 7.5 9.35054 7.3683 9.11612 7.13388C8.8817 6.89946 8.75 6.58152 8.75 6.25C8.75 5.91848 8.8817 5.60054 9.11612 5.36612C9.35054 5.1317 9.66848 5 10 5Z"
-                        fill="#0A3019"
-                      />
-                    </g>
-                    <defs>
-                      <clipPath id="clip0_375_460">
-                        <path d="M0 0H20V20H0V0Z" fill="white" />
-                      </clipPath>
-                    </defs>
-                  </svg>
-
-                  <p className="text-gray-600">
-                    Final Price will be confirmed by the professional based on
-                    the actual work required
-                  </p>
-                </div>
-                <div className="flex  items-start gap-2 text-sm">
-                  <div className="bg-green-600 w-5 h-5 flex items-center justify-center rounded-full">
-                    <Check className="w-4 h-4 text-white mt-0.5 shrink-0" />
-                  </div>
-                  <p className="text-green-600">Licensed professionals</p>
-                </div>
-                <div className="flex items-start gap-2 text-sm">
-                  <div className="bg-green-600 w-5 h-5 flex items-center justify-center rounded-full">
-                    <Check className="w-4 h-4 text-white mt-0.5 shrink-0" />
-                  </div>
-
-                  <p className="text-green-600">Satisfaction guarantee</p>
-                </div>
-                <div className="flex items-start gap-2 text-sm">
-                  <div className="bg-green-600 w-5 h-5 flex items-center justify-center rounded-full">
-                    <Check className="w-4 h-4 text-white mt-0.5 shrink-0" />
-                  </div>
-                  <p className="text-green-600">Same-day service available</p>
-                </div>
-              </div>
               {submitError ? (
-                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {submitError}
                 </div>
               ) : null}
+
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting || !hasSelectedService}
-                className="w-full bg-[#0a3019] text-white py-3 px-4 rounded-md font-medium hover:bg-[#0b4221] transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-6 w-full rounded-md bg-[#0a3019] px-4 py-3 font-medium text-white transition-colors hover:bg-[#0b4221] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="lucide lucide-send-icon lucide-send"
-                >
-                  <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" />
-                  <path d="m21.854 2.147-10.94 10.939" />
-                </svg>
-                {isSubmitting
-                  ? "Redirecting to Stripe..."
-                  : hasSelectedService
-                    ? "Secure Payment Method"
-                    : "Select a Service to Continue"}
+                {isSubmitting ? "Redirecting to Stripe..." : "Continue to Secure Hold"}
               </button>
 
-              <p className="text-xs text-gray-500 text-center mt-3">
-                You&apos;ll authorize your card securely on Stripe now. The charge is captured
-                after the job is completed.
+              <p className="mt-3 text-center text-xs text-gray-500">
+                YardHero places the payment in a secure hold and releases it only after completion proof is approved.
               </p>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/*================================ Footer ================================ */}
-      <div className=" mt-20 border-t pt-5 pb-10 md:pt-14   md:pb-32 border-[#E5E7EB]">
-        <div className="grid max-w-7xl mx-auto md:grid-cols-3  gap-2 mt-12 text-center   ">
-          <div>
-            <div className="flex justify-center mb-3">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                <svg
-                  width="29"
-                  height="30"
-                  viewBox="0 0 29 30"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M14.0625 0C14.3321 0 14.6016 0.0585938 14.8477 0.169922L25.8809 4.85156C27.1699 5.39648 28.1309 6.66797 28.125 8.20312C28.0957 14.0156 25.7051 24.6504 15.6094 29.4844C14.6309 29.9531 13.4942 29.9531 12.5157 29.4844C2.41995 24.6504 0.0293235 14.0156 2.66513e-05 8.20312C-0.00583272 6.66797 0.955105 5.39648 2.24417 4.85156L13.2832 0.169922C13.5235 0.0585938 13.793 0 14.0625 0ZM14.0625 3.91406V26.0625C22.1485 22.1484 24.3223 13.4824 24.375 8.28516L14.0625 3.91406Z"
-                    fill="#0A3019"
-                  />
-                </svg>
-              </div>
-            </div>
-            <h3 className="font-semibold text-gray-900 mb-1">Fully Insured</h3>
-            <p className="text-sm text-gray-600">
-              Your property coverage is always protected
-            </p>
-          </div>
-          <div>
-            <div className="flex justify-center mb-3">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                <svg
-                  width="23"
-                  height="30"
-                  viewBox="0 0 23 30"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <g clip-path="url(#clip0_39_4121)">
-                    <path
-                      d="M12.6387 29.25C15.6445 25.4883 22.5 16.3711 22.5 11.25C22.5 5.03906 17.4609 0 11.25 0C5.03906 0 0 5.03906 0 11.25C0 16.3711 6.85547 25.4883 9.86133 29.25C10.582 30.1465 11.918 30.1465 12.6387 29.25ZM11.25 7.5C12.2446 7.5 13.1984 7.89509 13.9017 8.59835C14.6049 9.30161 15 10.2554 15 11.25C15 12.2446 14.6049 13.1984 13.9017 13.9017C13.1984 14.6049 12.2446 15 11.25 15C10.2554 15 9.30161 14.6049 8.59835 13.9017C7.89509 13.1984 7.5 12.2446 7.5 11.25C7.5 10.2554 7.89509 9.30161 8.59835 8.59835C9.30161 7.89509 10.2554 7.5 11.25 7.5Z"
-                      fill="#0A3019"
-                    />
-                  </g>
-                  <defs>
-                    <clipPath id="clip0_39_4121">
-                      <path d="M0 0H22.5V30H0V0Z" fill="white" />
-                    </clipPath>
-                  </defs>
-                </svg>
-              </div>
-            </div>
-            <h3 className="font-semibold text-gray-900 mb-1">Local Workers</h3>
-            <p className="text-sm text-gray-600">
-              Trusted professionals in your area
-            </p>
-          </div>
-          <div>
-            <div className="flex justify-center mb-3">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                <svg
-                  width="17"
-                  height="30"
-                  viewBox="0 0 17 30"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M8.52914 0C9.56625 0 10.4041 0.837891 10.4041 1.875V3.9668C10.4979 3.97852 10.5858 3.99023 10.6795 4.00781C10.703 4.01367 10.7205 4.01367 10.744 4.01953L13.5565 4.53516C14.576 4.72266 15.2498 5.70117 15.0623 6.71484C14.8748 7.72852 13.8963 8.4082 12.8827 8.2207L10.0995 7.71094C8.26547 7.44141 6.64828 7.62305 5.51156 8.07422C4.37484 8.52539 3.91781 9.14648 3.81234 9.7207C3.69515 10.3477 3.78304 10.6992 3.88265 10.916C3.98812 11.1445 4.20492 11.4023 4.63265 11.6895C5.58773 12.3164 7.05258 12.7266 8.95101 13.2305L9.12093 13.2773C10.7967 13.7227 12.8475 14.2617 14.3709 15.2578C15.203 15.8027 15.9881 16.541 16.4744 17.5723C16.9725 18.6211 17.078 19.793 16.8494 21.041C16.4452 23.2676 14.91 24.7559 13.0057 25.5352C12.203 25.8633 11.3299 26.0742 10.4041 26.1797V28.125C10.4041 29.1621 9.56625 30 8.52914 30C7.49203 30 6.65414 29.1621 6.65414 28.125V26.0801C6.6307 26.0742 6.6014 26.0742 6.57797 26.0684H6.56625C5.13656 25.8457 2.78695 25.2305 1.20492 24.5273C0.261559 24.1055 -0.166175 22.998 0.2557 22.0547C0.677575 21.1113 1.785 20.6836 2.72836 21.1055C3.95297 21.6504 5.96859 22.1895 7.13461 22.3711C9.00375 22.6465 10.5448 22.4883 11.5877 22.0605C12.578 21.6562 13.0291 21.0703 13.158 20.3672C13.2694 19.7461 13.1815 19.3887 13.0819 19.1719C12.9705 18.9375 12.7537 18.6797 12.3202 18.3926C11.3592 17.7656 9.88851 17.3555 7.98422 16.8516L7.82015 16.8105C6.15023 16.3652 4.09945 15.8203 2.57601 14.8242C1.74398 14.2793 0.964684 13.5352 0.478356 12.5039C-0.0138313 11.4551 -0.113441 10.2832 0.120934 9.03516C0.542809 6.79688 2.21859 5.34375 4.12289 4.58789C4.90218 4.27734 5.75765 4.06641 6.65414 3.94336V1.875C6.65414 0.837891 7.49203 0 8.52914 0Z"
-                    fill="#0A3019"
-                  />
-                </svg>
-              </div>
-            </div>
-            <h3 className="font-semibold text-gray-900 mb-1">No Hidden Fees</h3>
-            <p className="text-sm text-gray-600">
-              What you see is what you pay
-            </p>
           </div>
         </div>
       </div>

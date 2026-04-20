@@ -121,12 +121,12 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  registerWorker: async (payload) => {
+  registerHero: async (payload) => {
     const previousSession = getStoredAuthSession();
     set({ isInitializing: true, error: null });
 
     try {
-      const session = await authApi.registerWorker(payload);
+      const session = await authApi.registerHero(payload);
       setStoredAuthSession(session);
       set(buildAuthenticatedState(session));
       return session;

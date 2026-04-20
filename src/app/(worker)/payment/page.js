@@ -58,7 +58,7 @@ const paymentMethods = [
   },
 ];
 
-export default function WorkerPaymentsPage() {
+export default function HeroPaymentsPage() {
   const pathname = usePathname();
   const { user, isRoleReady } = useRequiredRole("worker", pathname);
   const [payments, setPayments] = useState([]);
@@ -165,7 +165,7 @@ export default function WorkerPaymentsPage() {
               <span className="text-sm text-gray-600">Total Balance</span>
             </div>
             <p className="text-3xl font-bold text-gray-900">
-              {formatCurrency(summary.totalPaidWorkerPayout)}
+              {formatCurrency(summary.totalPaidHeroPayout)}
             </p>
             <p className="mt-1 text-xs text-gray-500">Available to withdraw</p>
           </div>
@@ -178,7 +178,7 @@ export default function WorkerPaymentsPage() {
               <span className="text-sm text-gray-600">Pending Balance</span>
             </div>
             <p className="text-3xl font-bold text-emerald-600">
-              {formatCurrency(summary.pendingWorkerPayout)}
+              {formatCurrency(summary.pendingHeroPayout)}
             </p>
             <p className="mt-1 text-xs text-gray-500">Being processed</p>
           </div>
@@ -191,7 +191,7 @@ export default function WorkerPaymentsPage() {
               <span className="text-sm text-gray-600">This Month</span>
             </div>
             <p className="text-3xl font-bold text-amber-600">
-              {formatCurrency(summary.currentMonthWorkerPayout)}
+              {formatCurrency(summary.currentMonthHeroPayout)}
             </p>
             <p className="mt-1 text-xs text-gray-500">Earned this month</p>
           </div>

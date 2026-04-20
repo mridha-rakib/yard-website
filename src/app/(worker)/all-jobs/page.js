@@ -25,8 +25,9 @@ const PAGE_LIMIT = 100;
 
 const tabs = [
   { id: "new", label: "New Jobs" },
-  { id: "accepted", label: "Accepted" },
+  { id: "assigned", label: "Accepted" },
   { id: "in_progress", label: "In Progress" },
+  { id: "pending_verification", label: "Awaiting Approval" },
   { id: "completed", label: "Completed" },
 ];
 
@@ -34,6 +35,7 @@ const statusLabels = {
   new: "New",
   assigned: "Accepted",
   in_progress: "In Progress",
+  pending_verification: "Awaiting Approval",
   completed: "Completed",
 };
 
@@ -91,33 +93,14 @@ const getStatusTone = (status = "new") => {
     return "bg-[#f3f4f6] text-[#4b5563]";
   }
 
+  if (status === "pending_verification") {
+    return "bg-[#fff7e6] text-[#b54708]";
+  }
+
   return "bg-[#eff6ff] text-[#1d4ed8]";
 };
 
 const formatCurrency = (value) => `$${formatPrice(value || 0)}`;
-const getCompletionFeedback = (result) => {
-  const captureStatus = result?.paymentCapture?.status || "";
-
-  if (["paid", "already_paid"].includes(captureStatus)) {
-    return {
-      type: "success",
-      message: "Job completed and customer payment captured.",
-    };
-  }
-
-  if (["failed", "payment_not_found"].includes(captureStatus)) {
-    return {
-      type: "warning",
-      message: "Job completed, but customer payment needs manual review.",
-    };
-  }
-
-  return {
-    type: "success",
-    message: "Job marked as completed.",
-  };
-};
-
 const formatLocation = (job) =>
   [job?.city, job?.state, job?.zipCode].filter(Boolean).join(", ") || "Location pending";
 
@@ -145,7 +128,7 @@ const formatSchedule = (job) => {
     return timeLabel;
   }
 
-  return "Flexible schedule";
+  return "Flexible timing";
 };
 
 export default function AllJobsPage() {
@@ -156,8 +139,9 @@ export default function AllJobsPage() {
   const [myJobs, setMyJobs] = useState([]);
   const [counts, setCounts] = useState({
     new: 0,
-    accepted: 0,
+    assigned: 0,
     in_progress: 0,
+    pending_verification: 0,
     completed: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -191,12 +175,15 @@ export default function AllJobsPage() {
         setMyJobs(myJobsResult.items);
         setCounts({
           new: availableResult.pagination?.total || availableResult.items.length,
-          accepted:
+          assigned:
             myJobsResult.summary?.assigned ||
             myJobsResult.items.filter((job) => job.status === "assigned").length,
           in_progress:
             myJobsResult.summary?.inProgress ||
             myJobsResult.items.filter((job) => job.status === "in_progress").length,
+          pending_verification:
+            myJobsResult.summary?.pendingVerification ||
+            myJobsResult.items.filter((job) => job.status === "pending_verification").length,
           completed:
             myJobsResult.summary?.completed ||
             myJobsResult.items.filter((job) => job.status === "completed").length,
@@ -224,12 +211,16 @@ export default function AllJobsPage() {
 
   const acceptedJobs = myJobs.filter((job) => job.status === "assigned");
   const inProgressJobs = myJobs.filter((job) => job.status === "in_progress");
+  const pendingVerificationJobs = myJobs.filter(
+    (job) => job.status === "pending_verification"
+  );
   const completedJobs = myJobs.filter((job) => job.status === "completed");
 
   const jobsByTab = {
     new: availableJobs,
-    accepted: acceptedJobs,
+    assigned: acceptedJobs,
     in_progress: inProgressJobs,
+    pending_verification: pendingVerificationJobs,
     completed: completedJobs,
   };
 
@@ -269,8 +260,8 @@ export default function AllJobsPage() {
     runAction(
       `accept:${jobId}`,
       () => jobsApi.acceptJob(jobId),
-      "Job accepted. It is now assigned to you.",
-      "accepted"
+      "Job accepted. It is now in your accepted jobs.",
+      "assigned"
     );
 
   const handleStartJob = (job) => {
@@ -287,20 +278,6 @@ export default function AllJobsPage() {
     );
   };
 
-  const handleCompleteJob = (job) => {
-    if (!job?.booking?._id) {
-      setActionError("This job is missing an active booking record.");
-      return;
-    }
-
-    runAction(
-      `complete:${job._id}`,
-      () => bookingsApi.completeBooking(job.booking._id),
-      getCompletionFeedback,
-      "completed"
-    );
-  };
-
   if (!isRoleReady) {
     return <div className="min-h-screen bg-[#f6f8f6]" />;
   }
@@ -312,7 +289,7 @@ export default function AllJobsPage() {
           <div>
             <h1 className="text-3xl font-bold text-[#0f172a]">All Jobs</h1>
             <p className="mt-2 text-sm text-[#52606d]">
-              Review open requests, accept new work, and manage the jobs already assigned
+              Review open requests, accept new work, and manage the jobs already accepted
               to you.
             </p>
           </div>
@@ -497,23 +474,12 @@ export default function AllJobsPage() {
                       ) : null}
 
                       {job.status === "in_progress" ? (
-                        <button
-                          type="button"
-                          onClick={() => handleCompleteJob(job)}
-                          disabled={
-                            pendingActionKey === `complete:${job._id}` || !job?.booking?._id
-                          }
-                          className="inline-flex items-center justify-center rounded-full bg-[#0A3019] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0b4221] disabled:cursor-not-allowed disabled:opacity-70"
+                        <Link
+                          href={`/all-jobs/job-details?jobId=${job._id}`}
+                          className="inline-flex items-center justify-center rounded-full bg-[#0A3019] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0b4221]"
                         >
-                          {pendingActionKey === `complete:${job._id}` ? (
-                            <>
-                              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                              Completing...
-                            </>
-                          ) : (
-                            "Mark as Completed"
-                          )}
-                        </button>
+                          Submit Proof
+                        </Link>
                       ) : null}
                     </div>
                   </div>

@@ -33,7 +33,7 @@ const dateFilters = [
 const statusFilters = [
   { value: "all", label: "All Status" },
   { value: "completed", label: "Completed" },
-  { value: "authorized", label: "Authorized" },
+  { value: "authorized", label: "Secure Hold" },
   { value: "pending", label: "Pending" },
   { value: "failed", label: "Failed" },
   { value: "refunded", label: "Refunded" },
@@ -53,7 +53,7 @@ const paymentStatusConfig = {
     statusColor: "bg-green-100 text-green-700",
   },
   authorized: {
-    label: "Authorized",
+    label: "Secure Hold",
     statusColor: "bg-blue-100 text-blue-700",
   },
   pending: {
@@ -109,7 +109,7 @@ const getMethodLabel = (value = "") => {
   return labels[value] || "Unknown";
 };
 
-const getWorkerInitials = (name = "") =>
+const getHeroInitials = (name = "") =>
   String(name)
     .trim()
     .split(/\s+/)
@@ -256,7 +256,7 @@ export default function PaymentHistoryPage() {
           <div className="rounded-2xl bg-white p-6 shadow-lg transition-shadow duration-300 hover:shadow-xl">
             <div className="flex items-start justify-between">
               <div>
-                <p className="mb-2 text-sm text-gray-600">Authorized / Pending</p>
+                <p className="mb-2 text-sm text-gray-600">Secure Hold / Pending</p>
                 <p className="text-3xl font-bold text-gray-900">
                   {formatCurrency(summary.pendingPayments)}
                 </p>
@@ -303,7 +303,7 @@ export default function PaymentHistoryPage() {
                 <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search by job ID or worker name..."
+                  placeholder="Search by job ID or Hero name..."
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
                   className="w-full rounded-lg border border-gray-300 py-3 pl-10 pr-4 transition-all focus:border-transparent focus:ring-2 focus:ring-green-500"
@@ -376,7 +376,7 @@ export default function PaymentHistoryPage() {
                     <tr>
                       {[
                         "Job Details",
-                        "Worker",
+                        "Hero",
                         "Date",
                         "Payment Method",
                         "Amount",
@@ -413,10 +413,10 @@ export default function PaymentHistoryPage() {
                           <td className="px-6 py-4">
                             <div className="flex items-center space-x-3">
                               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-semibold text-white">
-                                {getWorkerInitials(payment?.worker?.name)}
+                                {getHeroInitials(payment?.worker?.name)}
                               </div>
                               <span className="font-medium text-gray-900">
-                                {payment?.worker?.name || "Unassigned"}
+                                {payment?.worker?.name || "No Hero connected"}
                               </span>
                             </div>
                           </td>
@@ -483,11 +483,11 @@ export default function PaymentHistoryPage() {
 
                       <div className="mb-4 flex items-center space-x-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-semibold text-white">
-                          {getWorkerInitials(payment?.worker?.name)}
+                          {getHeroInitials(payment?.worker?.name)}
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">
-                            {payment?.worker?.name || "Unassigned"}
+                            {payment?.worker?.name || "No Hero connected"}
                           </p>
                           <p className="text-sm text-gray-500">
                             {formatPaymentDate(getPaymentDate(payment))}

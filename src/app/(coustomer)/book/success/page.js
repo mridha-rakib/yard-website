@@ -42,8 +42,8 @@ const timeLabels = {
 const workflowSteps = [
   {
     number: "1",
-    title: "We Review",
-    description: "We review your request details",
+    title: "Secure Hold",
+    description: "Your payment method is secured through Stripe right away.",
     icon: Search,
     tone: {
       number: "bg-[#143f22] text-white",
@@ -52,8 +52,8 @@ const workflowSteps = [
   },
   {
     number: "2",
-    title: "Worker Matched",
-    description: "A nearby worker is matched to your job",
+    title: "Hero Matched",
+    description: "A nearby Hero is matched to your job and completes the work.",
     icon: UserRoundCheck,
     tone: {
       number: "bg-[#e5e7eb] text-[#6b7280]",
@@ -62,8 +62,8 @@ const workflowSteps = [
   },
   {
     number: "3",
-    title: "Work Completed",
-    description: "Worker arrives and completes the job",
+    title: "Proof Submitted",
+    description: "The Hero uploads a verification photo and video after finishing.",
     icon: Wrench,
     tone: {
       number: "bg-[#e5e7eb] text-[#9ca3af]",
@@ -72,8 +72,8 @@ const workflowSteps = [
   },
   {
     number: "4",
-    title: "Payment",
-    description: "You pay after job completion",
+    title: "Approval and Release",
+    description: "YardHero reviews the proof and then releases payment to the worker.",
     icon: CircleDollarSign,
     tone: {
       number: "bg-[#e5e7eb] text-[#9ca3af]",
@@ -84,20 +84,20 @@ const workflowSteps = [
 
 const peaceOfMindItems = [
   {
-    title: "No Payment Required",
-    description: "Pay only after the job is completed to your satisfaction",
+    title: "Secure Hold",
+    description: "Funds stay protected until the job passes verification.",
     icon: ShieldCheck,
     tone: "bg-[#dcfce7] text-[#16a34a]",
   },
   {
     title: "Stay Informed",
-    description: "You'll be notified when a worker is assigned",
+    description: "You'll be notified when a Hero accepts and when proof is submitted.",
     icon: Bell,
     tone: "bg-[#dbeafe] text-[#2563eb]",
   },
   {
     title: "Safe & Transparent",
-    description: "Trusted process with clear communication",
+    description: "Fixed pricing, proof review, and no negotiation.",
     icon: CreditCard,
     tone: "bg-[#f3e8ff] text-[#a855f7]",
   },
@@ -124,7 +124,7 @@ const formatPreferredDateTime = (job) => {
   const timeLabel = timeLabels[rawTimeValue.toLowerCase()] || formatTime(rawTimeValue);
 
   if (dateLabel === "Flexible" && !rawTimeValue) {
-    return "Flexible schedule";
+    return "Flexible timing";
   }
 
   if (!rawTimeValue) {
@@ -196,7 +196,7 @@ function BookingSuccessScreen({ payment, job }) {
               Job Request Submitted Successfully
             </h1>
             <p className="mt-3 text-sm text-[#6b7280] md:text-[15px]">
-              We&apos;ve received your request and are matching you with a local worker.
+              We&apos;ve received your request and are matching you with a local Hero.
             </p>
           </div>
 
@@ -212,7 +212,7 @@ function BookingSuccessScreen({ payment, job }) {
 
             <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#fff5cf] px-3 py-1.5 text-xs font-medium text-[#8b6a06]">
               <span className="h-2 w-2 rounded-full bg-[#c58b00]" />
-              Pending - Finding a worker
+              Secure hold active - finding a Hero
             </div>
           </div>
 
@@ -256,13 +256,13 @@ function BookingSuccessScreen({ payment, job }) {
           <div className="mt-7 rounded-xl border border-[#e5e7eb] bg-white p-6 text-center shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
             <h2 className="text-[24px] font-semibold text-[#252b37]">Need Help?</h2>
             <p className="mt-3 text-sm text-[#6b7280]">
-              Contact us anytime if you have questions about your job request.
+              Contact us anytime if you have questions about the secure-hold and verification process.
             </p>
 
             <div className="mt-5 flex items-center justify-center text-sm font-medium text-[#374151]">
-              <a href="mailto:support@yardpro.com" className="inline-flex items-center gap-2 hover:text-[#143f22]">
+              <a href="mailto:support@yardhero.com" className="inline-flex items-center gap-2 hover:text-[#143f22]">
                 <Mail className="h-4 w-4 text-[#143f22]" />
-                support@yardpro.com
+                support@yardhero.com
               </a>
             </div>
           </div>
@@ -324,7 +324,7 @@ function PendingOrFailedBookingScreen({
     {
       title: "Job request queued",
       description:
-        "Your service request is saved and ready for worker matching and review.",
+        "Your service request is saved and ready for Hero matching and review.",
     },
     {
       title: "Track progress",

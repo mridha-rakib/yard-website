@@ -21,6 +21,7 @@ import { getApiErrorMessage } from "@/lib/api/http";
 import {
   buildPathWithSearchParams,
 } from "@/lib/auth/auth-redirect";
+import JobChatPanel from "@/components/chat/JobChatPanel";
 import { useRequiredRole } from "@/lib/auth/use-required-role";
 import { formatPrice } from "@/lib/pricing-content";
 import { formatDate, formatDateTime } from "@/lib/time";
@@ -31,12 +32,16 @@ const statusConfig = {
     badgeClassName: "bg-[#fff7e6] text-[#b54708]",
   },
   assigned: {
-    label: "Assigned",
+    label: "Accepted",
     badgeClassName: "bg-[#f3e8ff] text-[#7c3aed]",
   },
   in_progress: {
     label: "In Progress",
     badgeClassName: "bg-[#e8f1ff] text-[#1d4ed8]",
+  },
+  pending_verification: {
+    label: "Under Review",
+    badgeClassName: "bg-[#fff7e6] text-[#b54708]",
   },
   completed: {
     label: "Completed",
@@ -78,7 +83,7 @@ const getPaymentSummaryCopy = (paymentStatus = "") => {
   }
 
   if (paymentStatus === "authorized") {
-    return "Your card is authorized and will be captured after the worker completes the job.";
+    return "Your payment method is in a secure hold. Funds are released only after the Hero submits proof and YardHero approves the job.";
   }
 
   if (paymentStatus === "failed") {
@@ -112,7 +117,7 @@ const formatSchedule = (job) => {
     return timeLabel;
   }
 
-  return "Flexible schedule";
+  return "Flexible timing";
 };
 
 const buildTimeline = (job) => [
@@ -133,25 +138,36 @@ const buildTimeline = (job) => [
     detail: formatDateTime(job?.createdAt) || "Submitted recently",
   },
   {
-    label: "Worker assigned",
+    label: "Hero accepted",
     complete: Boolean(job?.assignedWorker),
     detail:
       formatDateTime(job?.booking?.createdAt) ||
-      (job?.assignedWorker ? "Worker assigned" : "We are finding a worker"),
+      (job?.assignedWorker ? "Hero accepted" : "We are finding a Hero"),
   },
   {
     label: "Work started",
-    complete: ["in_progress", "completed", "paid"].includes(job?.status),
+    complete: ["in_progress", "pending_verification", "completed", "paid"].includes(job?.status),
     detail:
       formatDateTime(job?.booking?.startedAt) ||
       (job?.status === "in_progress" ? "In progress" : "Not started yet"),
   },
   {
-    label: "Work completed",
+    label: "Proof submitted",
+    complete: ["pending_verification", "completed", "paid"].includes(job?.status),
+    detail:
+      formatDateTime(job?.booking?.verificationSubmittedAt || job?.booking?.completedAt) ||
+      (["pending_verification", "completed", "paid"].includes(job?.status)
+        ? "Hero proof submitted for review"
+        : "Pending"),
+  },
+  {
+    label: "YardHero approval",
     complete: ["completed", "paid"].includes(job?.status),
     detail:
-      formatDateTime(job?.booking?.completedAt) ||
-      (["completed", "paid"].includes(job?.status) ? "Completed" : "Pending"),
+      formatDateTime(job?.booking?.verificationApprovedAt) ||
+      (["completed", "paid"].includes(job?.status)
+        ? "Approved"
+        : "Waiting for YardHero review"),
   },
 ];
 
@@ -322,7 +338,7 @@ function BookingDetailsPageContent() {
                     <div className="flex items-start gap-3">
                       <Clock3 className="mt-0.5 h-5 w-5 text-[#64748b]" />
                       <div>
-                        <p className="text-sm font-semibold text-[#111827]">Preferred schedule</p>
+                        <p className="text-sm font-semibold text-[#111827]">Preferred time</p>
                         <p className="mt-1 text-sm text-[#52606d]">{formatSchedule(job)}</p>
                       </div>
                     </div>
@@ -364,11 +380,13 @@ function BookingDetailsPageContent() {
                   </div>
                 ) : null}
               </section>
+
+              <JobChatPanel jobId={job._id} job={job} viewerRole="customer" />
             </div>
 
             <aside className="space-y-6">
               <section className="rounded-[28px] border border-[#d8e4db] bg-white p-6">
-                <h3 className="text-xl font-semibold text-[#0f172a]">Assigned Worker</h3>
+                <h3 className="text-xl font-semibold text-[#0f172a]">Accepted Hero</h3>
 
                 {job.assignedWorker ? (
                   <div className="mt-5 space-y-4">
@@ -387,18 +405,53 @@ function BookingDetailsPageContent() {
                       </div>
                     </div>
 
-                    {job.assignedWorker.email ? (
-                      <div className="flex items-center gap-3 text-sm text-[#52606d]">
-                        <Mail className="h-4 w-4" />
-                        <span>{job.assignedWorker.email}</span>
-                      </div>
-                    ) : null}
+                  {job.assignedWorker.email ? (
+                    <div className="flex items-center gap-3 text-sm text-[#52606d]">
+                      <Mail className="h-4 w-4" />
+                      <span>{job.assignedWorker.email}</span>
+                    </div>
+                  ) : null}
 
-                  </div>
-                ) : (
-                  <div className="mt-5 rounded-2xl border border-[#e8eee9] bg-[#fbfdfb] px-4 py-4 text-sm leading-7 text-[#52606d]">
-                    Your request is in the queue. The first available worker who accepts it will
-                    be assigned here automatically.
+                  {Array.isArray(job.assignedWorker.portfolioItems) &&
+                  job.assignedWorker.portfolioItems.length ? (
+                    <div className="rounded-2xl border border-[#e2e8e3] bg-[#fbfdfb] p-4">
+                      <p className="text-sm font-semibold text-[#111827]">
+                        Portfolio highlights
+                      </p>
+                      <div className="mt-4 grid gap-3">
+                        {job.assignedWorker.portfolioItems.slice(0, 3).map((item) => (
+                          <div
+                            key={item.id || item.imageUrl}
+                            className="overflow-hidden rounded-2xl border border-[#d8e4db] bg-white"
+                          >
+                            {item.imageUrl ? (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.title || "Portfolio item"}
+                                className="h-36 w-full object-cover"
+                              />
+                            ) : null}
+                            <div className="p-3">
+                              <p className="text-sm font-semibold text-[#111827]">
+                                {item.title || item.serviceType || "Completed project"}
+                              </p>
+                              {item.description ? (
+                                <p className="mt-1 text-xs leading-5 text-[#52606d]">
+                                  {item.description}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                </div>
+              ) : (
+                <div className="mt-5 rounded-2xl border border-[#e8eee9] bg-[#fbfdfb] px-4 py-4 text-sm leading-7 text-[#52606d]">
+                    Your request is in the queue. The first available Hero who accepts it will
+                    appear here automatically.
                   </div>
                 )}
               </section>

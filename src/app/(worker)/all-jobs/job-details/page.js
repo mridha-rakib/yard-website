@@ -21,6 +21,7 @@ import { getApiErrorMessage } from "@/lib/api/http";
 import {
   buildPathWithSearchParams,
 } from "@/lib/auth/auth-redirect";
+import JobChatPanel from "@/components/chat/JobChatPanel";
 import { formatPrice } from "@/lib/pricing-content";
 import { formatDate, formatDateTime } from "@/lib/time";
 import { useRequiredRole } from "@/lib/auth/use-required-role";
@@ -29,6 +30,7 @@ const statusLabels = {
   new: "New",
   assigned: "Accepted",
   in_progress: "In Progress",
+  pending_verification: "Awaiting Approval",
   completed: "Completed",
 };
 
@@ -47,7 +49,7 @@ const getPaymentStatusCopy = (paymentStatus = "") => {
   }
 
   if (paymentStatus === "authorized") {
-    return "Authorized and ready to capture after completion";
+    return "In secure hold until YardHero approves completion proof";
   }
 
   if (paymentStatus === "failed") {
@@ -60,28 +62,18 @@ const getPaymentStatusCopy = (paymentStatus = "") => {
 
   return "Awaiting payment authorization";
 };
-const getCompletionFeedback = (result) => {
-  const captureStatus = result?.paymentCapture?.status || "";
+const getCompletionFeedback = () => ({
+  type: "success",
+  message: "Proof submitted. YardHero will review the photo and video before payout release.",
+});
 
-  if (["paid", "already_paid"].includes(captureStatus)) {
-    return {
-      type: "success",
-      message: "Job completed and customer payment captured.",
-    };
-  }
-
-  if (["failed", "payment_not_found"].includes(captureStatus)) {
-    return {
-      type: "warning",
-      message: "Job completed, but customer payment needs manual review.",
-    };
-  }
-
-  return {
-    type: "success",
-    message: "Job marked as completed.",
-  };
-};
+const toDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("We could not process that file."));
+    reader.readAsDataURL(file);
+  });
 
 const formatLocation = (job) =>
   [job?.streetAddress, job?.city, job?.state, job?.zipCode].filter(Boolean).join(", ") ||
@@ -103,7 +95,7 @@ const formatSchedule = (job) => {
     return timeLabel;
   }
 
-  return "Flexible schedule";
+  return "Flexible timing";
 };
 
 const buildTimeline = (job) => [
@@ -119,13 +111,18 @@ const buildTimeline = (job) => [
   },
   {
     label: "In Progress",
-    complete: ["in_progress", "completed", "paid"].includes(job?.status),
+    complete: ["in_progress", "pending_verification", "completed", "paid"].includes(job?.status),
     timestamp: job?.booking?.startedAt || "",
   },
   {
-    label: "Completed",
+    label: "Proof Submitted",
+    complete: ["pending_verification", "completed", "paid"].includes(job?.status),
+    timestamp: job?.booking?.verificationSubmittedAt || job?.booking?.completedAt || "",
+  },
+  {
+    label: "Approved",
     complete: ["completed", "paid"].includes(job?.status),
-    timestamp: job?.booking?.completedAt || "",
+    timestamp: job?.booking?.verificationApprovedAt || "",
   },
   {
     label: "Customer Payment Secured",
@@ -134,7 +131,7 @@ const buildTimeline = (job) => [
   },
 ];
 
-function WorkerJobDetailsPageContent() {
+function HeroJobDetailsPageContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const jobId = searchParams.get("jobId") || "";
@@ -147,6 +144,10 @@ function WorkerJobDetailsPageContent() {
   const [actionMessage, setActionMessage] = useState("");
   const [pendingAction, setPendingAction] = useState("");
   const [requestVersion, setRequestVersion] = useState(0);
+  const [proofPhoto, setProofPhoto] = useState("");
+  const [proofVideo, setProofVideo] = useState("");
+  const [proofNotes, setProofNotes] = useState("");
+  const [isPreparingProof, setIsPreparingProof] = useState(false);
 
   useEffect(() => {
     if (!isRoleReady) {
@@ -220,7 +221,7 @@ function WorkerJobDetailsPageContent() {
   };
 
   const handleAcceptJob = () =>
-    runAction("accept", () => jobsApi.acceptJob(jobId), "Job accepted and assigned to you.");
+    runAction("accept", () => jobsApi.acceptJob(jobId), "Job accepted and added to your accepted jobs.");
 
   const handleStartJob = () => {
     if (!job?.booking?._id) {
@@ -241,11 +242,53 @@ function WorkerJobDetailsPageContent() {
       return;
     }
 
+    if (!proofPhoto) {
+      setActionError("Upload a verification photo before submitting completion.");
+      return;
+    }
+
+    if (!proofVideo) {
+      setActionError("Upload a verification video before submitting completion.");
+      return;
+    }
+
     runAction(
       "complete",
-      () => bookingsApi.completeBooking(job.booking._id),
+      () =>
+        bookingsApi.completeBooking(job.booking._id, {
+          verificationPhotoUrls: [proofPhoto],
+          verificationVideoUrl: proofVideo,
+          workerCompletionNotes: proofNotes.trim(),
+        }),
       getCompletionFeedback
     );
+  };
+
+  const handleProofFileChange = async (kind, event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setIsPreparingProof(true);
+    setActionError("");
+    setActionMessage("");
+
+    try {
+      const dataUrl = await toDataUrl(file);
+
+      if (kind === "photo") {
+        setProofPhoto(dataUrl);
+      } else {
+        setProofVideo(dataUrl);
+      }
+    } catch (error) {
+      setActionError(error?.message || "We could not process that file.");
+    } finally {
+      setIsPreparingProof(false);
+    }
   };
 
   if (!isRoleReady) {
@@ -268,6 +311,8 @@ function WorkerJobDetailsPageContent() {
       ? "bg-[#f3f4f6] text-[#4b5563]"
       : job?.status === "in_progress"
         ? "bg-[#ecfdf3] text-[#027a48]"
+        : job?.status === "pending_verification"
+          ? "bg-[#fff7e6] text-[#b54708]"
         : job?.status === "assigned"
           ? "bg-[#eef7f0] text-[#166534]"
           : "bg-[#eff6ff] text-[#1d4ed8]";
@@ -411,10 +456,12 @@ function WorkerJobDetailsPageContent() {
                 </div>
               </section>
 
+              <JobChatPanel jobId={job._id} job={job} viewerRole="worker" />
+
               <section className="rounded-[28px] border border-[#d8e4db] bg-white p-6 md:p-8">
                 <h3 className="text-xl font-semibold text-[#0f172a]">Job Description</h3>
                 <p className="mt-2 text-sm text-[#52606d]">
-                  Schedule: {formatSchedule(job)}
+                  Preferred time: {formatSchedule(job)}
                 </p>
 
                 {descriptionLines.length > 0 ? (
@@ -435,7 +482,7 @@ function WorkerJobDetailsPageContent() {
                 )}
 
                 <div className="mt-6 rounded-2xl border border-[#f0dfaf] bg-[#fffbef] px-4 py-4">
-                  <p className="text-sm font-semibold text-[#854d0e]">Worker note</p>
+                  <p className="text-sm font-semibold text-[#854d0e]">Hero note</p>
                   <p className="mt-1 text-sm leading-6 text-[#6b7280]">
                     Review the job location and customer description before heading out. If
                     something looks incomplete, confirm with the customer first.
@@ -467,6 +514,50 @@ function WorkerJobDetailsPageContent() {
                   </div>
                 )}
               </section>
+
+              {job.status === "pending_verification" || job.status === "completed" ? (
+                <section className="rounded-[28px] border border-[#d8e4db] bg-white p-6 md:p-8">
+                  <h3 className="text-xl font-semibold text-[#0f172a]">
+                    Completion Proof
+                  </h3>
+
+                  {Array.isArray(job.booking?.verificationPhotoUrls) &&
+                  job.booking.verificationPhotoUrls.length ? (
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                      {job.booking.verificationPhotoUrls.map((photo, index) => (
+                        <img
+                          key={`${photo}-${index}`}
+                          src={photo}
+                          alt={`Verification photo ${index + 1}`}
+                          className="h-48 w-full rounded-2xl object-cover"
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {job.booking?.verificationVideoUrl ? (
+                    <div className="mt-5 rounded-2xl border border-[#e2e8e3] bg-[#fbfdfb] p-4">
+                      <p className="text-sm font-semibold text-[#111827]">
+                        Verification video uploaded
+                      </p>
+                      <video
+                        controls
+                        src={job.booking.verificationVideoUrl}
+                        className="mt-4 max-h-[340px] w-full rounded-2xl bg-black"
+                      />
+                    </div>
+                  ) : null}
+
+                  {job.booking?.workerCompletionNotes ? (
+                    <div className="mt-5 rounded-2xl border border-[#e2e8e3] bg-[#fbfdfb] p-4">
+                      <p className="text-sm font-semibold text-[#111827]">Hero notes</p>
+                      <p className="mt-2 text-sm leading-6 text-[#52606d]">
+                        {job.booking.workerCompletionNotes}
+                      </p>
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
             </div>
 
             <aside className="space-y-6">
@@ -590,21 +681,84 @@ function WorkerJobDetailsPageContent() {
                   ) : null}
 
                   {job.status === "in_progress" ? (
-                    <button
-                      type="button"
-                      onClick={handleCompleteJob}
-                      disabled={pendingAction === "complete" || !job?.booking?._id}
-                      className="inline-flex items-center justify-center rounded-full bg-[#0A3019] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0b4221] disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      {pendingAction === "complete" ? (
-                        <>
-                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                          Completing...
-                        </>
-                      ) : (
-                        "Mark as Completed"
-                      )}
-                    </button>
+                    <>
+                      <div className="rounded-2xl border border-[#d8e4db] bg-[#fbfdfb] p-4 text-sm text-[#52606d]">
+                        Upload both a verification photo and a verification video. YardHero will review them before releasing your payout.
+                      </div>
+
+                      <label className="text-sm font-medium text-[#334155]">
+                        Verification Photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => handleProofFileChange("photo", event)}
+                          className="mt-2 block w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm"
+                        />
+                      </label>
+
+                      <label className="text-sm font-medium text-[#334155]">
+                        Verification Video
+                        <input
+                          type="file"
+                          accept="video/*"
+                          onChange={(event) => handleProofFileChange("video", event)}
+                          className="mt-2 block w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm"
+                        />
+                      </label>
+
+                      <label className="text-sm font-medium text-[#334155]">
+                        Completion Notes
+                        <textarea
+                          rows={4}
+                          value={proofNotes}
+                          onChange={(event) => setProofNotes(event.target.value)}
+                          placeholder="Optional notes about what was completed."
+                          className="mt-2 w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm outline-none transition-colors focus:border-[#0A3019]"
+                        />
+                      </label>
+
+                      {proofPhoto ? (
+                        <img
+                          src={proofPhoto}
+                          alt="Verification preview"
+                          className="rounded-2xl border border-[#d8e4db] object-cover"
+                        />
+                      ) : null}
+
+                      {proofVideo ? (
+                        <video
+                          controls
+                          src={proofVideo}
+                          className="max-h-[260px] rounded-2xl border border-[#d8e4db] bg-black"
+                        />
+                      ) : null}
+
+                      <button
+                        type="button"
+                        onClick={handleCompleteJob}
+                        disabled={
+                          pendingAction === "complete" ||
+                          !job?.booking?._id ||
+                          isPreparingProof
+                        }
+                        className="inline-flex items-center justify-center rounded-full bg-[#0A3019] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0b4221] disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {pendingAction === "complete" || isPreparingProof ? (
+                          <>
+                            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          "Submit Completion Proof"
+                        )}
+                      </button>
+                    </>
+                  ) : null}
+
+                  {job.status === "pending_verification" ? (
+                    <div className="rounded-2xl border border-[#f2dfb5] bg-[#fffaf0] px-4 py-3 text-sm text-[#9a6700]">
+                      Your photo and video proof are under YardHero review. Payment will stay on hold until approval.
+                    </div>
                   ) : null}
 
                   <Link
@@ -617,7 +771,7 @@ function WorkerJobDetailsPageContent() {
 
                 {!job?.booking?._id && job?.status !== "new" ? (
                   <div className="mt-4 rounded-2xl border border-[#f2dfb5] bg-[#fffaf0] px-4 py-3 text-sm text-[#9a6700]">
-                    This assigned job is missing a booking record, so progress actions are
+                    This accepted job is missing a booking record, so progress actions are
                     temporarily unavailable.
                   </div>
                 ) : null}
@@ -626,7 +780,7 @@ function WorkerJobDetailsPageContent() {
               <section className="rounded-[28px] border border-[#f1dada] bg-[#fff7f7] p-6">
                 <h3 className="text-xl font-semibold text-[#0f172a]">Need Help?</h3>
                 <p className="mt-2 text-sm leading-6 text-[#6b7280]">
-                  If the address, schedule, or job scope looks unsafe or incorrect, contact
+                  If the address, timing, or job scope looks unsafe or incorrect, contact
                   support before starting the work.
                 </p>
                 <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#f0d4d4] bg-white px-4 py-4">
@@ -644,10 +798,10 @@ function WorkerJobDetailsPageContent() {
   );
 }
 
-export default function WorkerJobDetailsPage() {
+export default function HeroJobDetailsPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#f6f8f6]" />}>
-      <WorkerJobDetailsPageContent />
+      <HeroJobDetailsPageContent />
     </Suspense>
   );
 }
