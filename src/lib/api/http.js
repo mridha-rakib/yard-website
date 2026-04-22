@@ -7,20 +7,30 @@ import {
   patchStoredAuthSession,
 } from "./auth-session";
 
+const DEFAULT_API_TIMEOUT_MS = 30000;
+
 export const getApiErrorMessage = (error) =>
-  error?.response?.data?.message ||
-  error?.response?.data?.error ||
-  error?.message ||
-  "Something went wrong";
+  error?.code === "ECONNABORTED" || String(error?.message || "").toLowerCase().includes("timeout")
+    ? String(error?.config?.url || "").includes("/payments/checkout/session/")
+      ? "Payment confirmation is taking longer than expected. Please refresh the status in a moment."
+      : String(error?.config?.url || "").includes("/jobs")
+        ? "Loading jobs is taking longer than expected. Please try again."
+      : String(error?.config?.url || "").includes("/payments")
+        ? "Loading payment data is taking longer than expected. Please try again."
+      : "Stripe checkout is taking longer than expected. Please try again."
+    : error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      "Something went wrong";
 
 export const publicApi = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: DEFAULT_API_TIMEOUT_MS,
 });
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: DEFAULT_API_TIMEOUT_MS,
 });
 
 let refreshRequest = null;

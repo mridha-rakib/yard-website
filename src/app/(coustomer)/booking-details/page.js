@@ -79,7 +79,7 @@ const formatPaymentStatus = (value = "") =>
     .join(" ");
 const getPaymentSummaryCopy = (paymentStatus = "") => {
   if (paymentStatus === "paid") {
-    return "Payment was captured through Stripe after the job was completed.";
+    return "Your payment was collected securely through Stripe. Hero payout is released only after YardHero approves completion proof.";
   }
 
   if (paymentStatus === "authorized") {
@@ -126,7 +126,7 @@ const buildTimeline = (job) => [
     complete: securedPaymentStatuses.includes(job?.payment?.status),
     detail:
       job?.payment?.status === "paid"
-        ? formatDateTime(job?.payment?.paidAt) || "Payment captured through Stripe"
+        ? formatDateTime(job?.payment?.paidAt) || "Payment collected through Stripe"
         : job?.payment?.status === "authorized"
           ? formatDateTime(job?.payment?.authorizedAt) ||
             "Card authorized for capture after completion"

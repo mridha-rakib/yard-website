@@ -42,8 +42,8 @@ const timeLabels = {
 const workflowSteps = [
   {
     number: "1",
-    title: "Secure Hold",
-    description: "Your payment method is secured through Stripe right away.",
+    title: "Secure Payment",
+    description: "Your payment is collected securely through Stripe right away.",
     icon: Search,
     tone: {
       number: "bg-[#143f22] text-white",
@@ -84,8 +84,8 @@ const workflowSteps = [
 
 const peaceOfMindItems = [
   {
-    title: "Secure Hold",
-    description: "Funds stay protected until the job passes verification.",
+    title: "Secure Payment",
+    description: "Your payment is collected securely and tracked until the job passes verification.",
     icon: ShieldCheck,
     tone: "bg-[#dcfce7] text-[#16a34a]",
   },
@@ -141,6 +141,8 @@ const formatBudget = (payment, job) => {
   const amount = Number(payment?.amount || job?.estimatedPrice || 0);
   return amount > 0 ? `$${formatPrice(amount)}` : "To be confirmed";
 };
+
+const getJobTitle = (job) => job?.title || job?.serviceType || "Service request";
 
 function JobSummaryItem({ label, value }) {
   return (
@@ -204,7 +206,7 @@ function BookingSuccessScreen({ payment, job }) {
             <h2 className="text-lg font-semibold text-[#111827]">Job Summary</h2>
 
             <div className="mt-5 grid gap-y-5 md:grid-cols-2 md:gap-x-12">
-              <JobSummaryItem label="Job Type" value={job?.title || "Service request"} />
+              <JobSummaryItem label="Job Type" value={getJobTitle(job)} />
               <JobSummaryItem label="Preferred Date & Time" value={formatPreferredDateTime(job)} />
               <JobSummaryItem label="Location" value={formatLocation(job)} />
               <JobSummaryItem label="Budget" value={formatBudget(payment, job)} />
@@ -212,7 +214,7 @@ function BookingSuccessScreen({ payment, job }) {
 
             <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#fff5cf] px-3 py-1.5 text-xs font-medium text-[#8b6a06]">
               <span className="h-2 w-2 rounded-full bg-[#c58b00]" />
-              Secure hold active - finding a Hero
+              Secure payment received - finding a Hero
             </div>
           </div>
 
@@ -256,7 +258,7 @@ function BookingSuccessScreen({ payment, job }) {
           <div className="mt-7 rounded-xl border border-[#e5e7eb] bg-white p-6 text-center shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
             <h2 className="text-[24px] font-semibold text-[#252b37]">Need Help?</h2>
             <p className="mt-3 text-sm text-[#6b7280]">
-              Contact us anytime if you have questions about the secure-hold and verification process.
+              Contact us anytime if you have questions about the payment and verification process.
             </p>
 
             <div className="mt-5 flex items-center justify-center text-sm font-medium text-[#374151]">
@@ -385,7 +387,7 @@ function PendingOrFailedBookingScreen({
                   Service
                 </p>
                 <p className="mt-2 text-lg font-semibold text-[#111827]">
-                  {job?.title || "Service request"}
+                  {getJobTitle(job)}
                 </p>
               </div>
 
@@ -394,7 +396,7 @@ function PendingOrFailedBookingScreen({
                   Amount
                 </p>
                 <p className="mt-2 text-lg font-semibold text-[#111827]">
-                  ${formatPrice(payment?.amount || 0)}
+                  {formatBudget(payment, job)}
                 </p>
               </div>
 
@@ -443,14 +445,14 @@ function PendingOrFailedBookingScreen({
               <div>
                 <p className="text-sm text-[#6b7280]">Service</p>
                 <p className="mt-2 text-base font-semibold text-[#111827]">
-                  {job?.title || "Service request"}
+                  {getJobTitle(job)}
                 </p>
               </div>
 
               <div>
                 <p className="text-sm text-[#6b7280]">Amount paid</p>
                 <p className="mt-2 text-base font-semibold text-[#111827]">
-                  ${formatPrice(payment?.amount || 0)}
+                  {formatBudget(payment, job)}
                 </p>
               </div>
 

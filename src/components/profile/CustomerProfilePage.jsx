@@ -280,7 +280,7 @@ export default function CustomerProfilePage() {
         const [profileResult, jobsResult, paymentsResult, conversationsResult] =
           await Promise.allSettled([
             usersApi.getProfile(),
-            jobsApi.listMyJobs({ limit: JOB_LIMIT }),
+            jobsApi.listMyJobs({ limit: JOB_LIMIT, includeOperational: false }),
             paymentApi.listPayments({ limit: PAYMENT_LIMIT }),
             supportApi.listConversations({ limit: SUPPORT_LIMIT }),
           ]);

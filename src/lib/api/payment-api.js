@@ -6,12 +6,22 @@ const unwrapList = (response) => ({
   pagination: response.data.pagination || null,
   summary: response.data.summary || null,
 });
+const CHECKOUT_REQUEST_TIMEOUT_MS = 60000;
+const CHECKOUT_STATUS_TIMEOUT_MS = 60000;
 
 export const paymentApi = {
   createJobCheckoutSession: (payload) =>
-    apiClient.post("/payments/checkout/job-request", payload).then(unwrap),
+    apiClient
+      .post("/payments/checkout/job-request", payload, {
+        timeout: CHECKOUT_REQUEST_TIMEOUT_MS,
+      })
+      .then(unwrap),
   getCheckoutSessionStatus: (sessionId) =>
-    apiClient.get(`/payments/checkout/session/${sessionId}`).then(unwrap),
+    apiClient
+      .get(`/payments/checkout/session/${sessionId}`, {
+        timeout: CHECKOUT_STATUS_TIMEOUT_MS,
+      })
+      .then(unwrap),
   listPayments: (params = {}) => apiClient.get("/payments", { params }).then(unwrapList),
   getPaymentById: (paymentId) => apiClient.get(`/payments/${paymentId}`).then(unwrap),
 };

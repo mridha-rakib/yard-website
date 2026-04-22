@@ -292,7 +292,7 @@ function BookYardWorkFormContent() {
     try {
       const checkoutSession = await paymentApi.createJobCheckoutSession({
         amount: finalPrice,
-        description: `${effectiveSelectedService.title} secure hold authorization`,
+        description: `${effectiveSelectedService.title} secure Stripe payment`,
         cancelUrl: bookingPath,
         serviceId: effectiveSelectedService.id,
         pricingInput: quote.input,
@@ -777,8 +777,8 @@ function BookYardWorkFormContent() {
 
                 <div className="space-y-3">
                   {[
-                    "Your payment method is secured up front through Stripe.",
-                    "Funds stay on hold until the worker submits proof and YardHero approves the job.",
+                    "Your payment is collected securely through Stripe when you book.",
+                    "YardHero reviews completion proof before releasing the Hero payout.",
                     "Workers must upload both a verification photo and video before payout release.",
                   ].map((item) => (
                     <div key={item} className="flex items-start gap-2 text-sm text-gray-700">
@@ -803,11 +803,11 @@ function BookYardWorkFormContent() {
                 disabled={isSubmitting || !hasSelectedService}
                 className="mt-6 w-full rounded-md bg-[#0a3019] px-4 py-3 font-medium text-white transition-colors hover:bg-[#0b4221] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {isSubmitting ? "Redirecting to Stripe..." : "Continue to Secure Hold"}
+                {isSubmitting ? "Redirecting to Stripe..." : "Continue to Secure Payment"}
               </button>
 
               <p className="mt-3 text-center text-xs text-gray-500">
-                YardHero places the payment in a secure hold and releases it only after completion proof is approved.
+                Customer payment is collected securely through Stripe, and Hero payout is released only after completion proof is approved.
               </p>
             </div>
           </div>

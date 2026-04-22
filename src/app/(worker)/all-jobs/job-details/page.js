@@ -22,6 +22,14 @@ import {
   buildPathWithSearchParams,
 } from "@/lib/auth/auth-redirect";
 import JobChatPanel from "@/components/chat/JobChatPanel";
+import {
+  getProofUploadErrorMessage,
+  optimizeProofPhotoFile,
+  PROOF_PHOTO_REQUIREMENTS,
+  PROOF_VIDEO_REQUIREMENTS,
+  readProofVideoFile,
+  resolveProofMediaUrl,
+} from "@/lib/proof-media";
 import { formatPrice } from "@/lib/pricing-content";
 import { formatDate, formatDateTime } from "@/lib/time";
 import { useRequiredRole } from "@/lib/auth/use-required-role";
@@ -45,7 +53,7 @@ const securedPaymentStatuses = ["authorized", "paid"];
 const formatCurrency = (value) => `$${formatPrice(value || 0)}`;
 const getPaymentStatusCopy = (paymentStatus = "") => {
   if (paymentStatus === "paid") {
-    return "Captured through Stripe";
+    return "Customer payment was collected through Stripe";
   }
 
   if (paymentStatus === "authorized") {
@@ -66,14 +74,6 @@ const getCompletionFeedback = () => ({
   type: "success",
   message: "Proof submitted. YardHero will review the photo and video before payout release.",
 });
-
-const toDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("We could not process that file."));
-    reader.readAsDataURL(file);
-  });
 
 const formatLocation = (job) =>
   [job?.streetAddress, job?.city, job?.state, job?.zipCode].filter(Boolean).join(", ") ||
@@ -214,7 +214,7 @@ function HeroJobDetailsPageContent() {
 
       setRequestVersion((currentValue) => currentValue + 1);
     } catch (error) {
-      setActionError(getApiErrorMessage(error));
+      setActionError(getProofUploadErrorMessage(error));
     } finally {
       setPendingAction("");
     }
@@ -277,7 +277,8 @@ function HeroJobDetailsPageContent() {
     setActionMessage("");
 
     try {
-      const dataUrl = await toDataUrl(file);
+      const dataUrl =
+        kind === "photo" ? await optimizeProofPhotoFile(file) : await readProofVideoFile(file);
 
       if (kind === "photo") {
         setProofPhoto(dataUrl);
@@ -542,7 +543,7 @@ function HeroJobDetailsPageContent() {
                       </p>
                       <video
                         controls
-                        src={job.booking.verificationVideoUrl}
+                        src={resolveProofMediaUrl(job.booking.verificationVideoUrl)}
                         className="mt-4 max-h-[340px] w-full rounded-2xl bg-black"
                       />
                     </div>
@@ -694,6 +695,9 @@ function HeroJobDetailsPageContent() {
                           onChange={(event) => handleProofFileChange("photo", event)}
                           className="mt-2 block w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm"
                         />
+                        <span className="mt-2 block text-xs font-normal text-[#6b7280]">
+                          {PROOF_PHOTO_REQUIREMENTS}
+                        </span>
                       </label>
 
                       <label className="text-sm font-medium text-[#334155]">
@@ -704,6 +708,9 @@ function HeroJobDetailsPageContent() {
                           onChange={(event) => handleProofFileChange("video", event)}
                           className="mt-2 block w-full rounded-2xl border border-[#d5ddd7] px-4 py-3 text-sm"
                         />
+                        <span className="mt-2 block text-xs font-normal text-[#6b7280]">
+                          {PROOF_VIDEO_REQUIREMENTS}
+                        </span>
                       </label>
 
                       <label className="text-sm font-medium text-[#334155]">
@@ -728,7 +735,7 @@ function HeroJobDetailsPageContent() {
                       {proofVideo ? (
                         <video
                           controls
-                          src={proofVideo}
+                          src={resolveProofMediaUrl(proofVideo)}
                           className="max-h-[260px] rounded-2xl border border-[#d8e4db] bg-black"
                         />
                       ) : null}

@@ -188,7 +188,12 @@ export default function MyJobsPage() {
       setIsLoading(true);
 
       try {
-        const result = await jobsApi.listMyJobs({ limit: PAGE_LIMIT });
+        const result = await jobsApi.listMyJobs({
+          limit: PAGE_LIMIT,
+          includeSummary: false,
+          includeOperational: false,
+          includeTotal: false,
+        });
 
         if (!isActive) {
           return;

@@ -163,8 +163,17 @@ export default function AllJobsPage() {
 
       try {
         const [availableResult, myJobsResult] = await Promise.all([
-          jobsApi.listAvailableJobs({ limit: PAGE_LIMIT }),
-          jobsApi.listMyJobs({ limit: PAGE_LIMIT }),
+          jobsApi.listAvailableJobs({
+            limit: PAGE_LIMIT,
+            includeBooking: false,
+            includePayment: false,
+            includeTotal: false,
+          }),
+          jobsApi.listMyJobs({
+            limit: PAGE_LIMIT,
+            includeSummary: false,
+            includeTotal: false,
+          }),
         ]);
 
         if (!isActive) {
@@ -174,19 +183,13 @@ export default function AllJobsPage() {
         setAvailableJobs(availableResult.items);
         setMyJobs(myJobsResult.items);
         setCounts({
-          new: availableResult.pagination?.total || availableResult.items.length,
-          assigned:
-            myJobsResult.summary?.assigned ||
-            myJobsResult.items.filter((job) => job.status === "assigned").length,
-          in_progress:
-            myJobsResult.summary?.inProgress ||
-            myJobsResult.items.filter((job) => job.status === "in_progress").length,
-          pending_verification:
-            myJobsResult.summary?.pendingVerification ||
-            myJobsResult.items.filter((job) => job.status === "pending_verification").length,
-          completed:
-            myJobsResult.summary?.completed ||
-            myJobsResult.items.filter((job) => job.status === "completed").length,
+          new: availableResult.items.length,
+          assigned: myJobsResult.items.filter((job) => job.status === "assigned").length,
+          in_progress: myJobsResult.items.filter((job) => job.status === "in_progress").length,
+          pending_verification: myJobsResult.items.filter(
+            (job) => job.status === "pending_verification"
+          ).length,
+          completed: myJobsResult.items.filter((job) => job.status === "completed").length,
         });
         setPageError("");
       } catch (error) {
