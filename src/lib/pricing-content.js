@@ -233,6 +233,17 @@ export const DEFAULT_PRICING_CATEGORIES = [
     subtitle: "Fast flat-rate add-on services at your location.",
     services: [
       withPrice({
+        id: "test-live-payment",
+        icon: "sparkles",
+        title: "Live Payment Test Job",
+        duration: "5-10 min",
+        description: "Internal fixed-price service for validating the live customer checkout and Hero payout flow.",
+        pricingType: "fixed",
+        fixedPrice: 2,
+        pricingSummary: "$2 fixed price",
+        pricingNote: "Use this only for payment verification.",
+      }),
+      withPrice({
         id: "vehicle-gas-filling",
         icon: "car",
         title: "Gas Filling",
