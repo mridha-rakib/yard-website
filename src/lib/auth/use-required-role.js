@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buildLoginPath } from "./auth-redirect";
 import { getDefaultPathForUser } from "./get-default-path";
+import { isNavigatingToDifferentRole } from "./role-switch-navigation";
 import { hasRole } from "./user-roles";
 import { useAuthStore } from "@/stores/use-auth-store";
 
@@ -30,6 +31,11 @@ export const useRequiredRole = (requiredRole, redirectPath) => {
 
       if (user?.role && !hasRole(user, requiredRole)) {
         router.replace(getDefaultPathForUser(user));
+        return;
+      }
+
+      if (isNavigatingToDifferentRole(requiredRole)) {
+        setIsRoleSyncing(false);
         return;
       }
 

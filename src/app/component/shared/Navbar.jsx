@@ -21,6 +21,10 @@ import { buildLoginPath } from "@/lib/auth/auth-redirect";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getDefaultPathForUser } from "@/lib/auth/get-default-path";
 import {
+  clearRoleSwitchNavigation,
+  markRoleSwitchNavigation,
+} from "@/lib/auth/role-switch-navigation";
+import {
   ROLES,
   getPrimaryRole,
   hasRole,
@@ -265,7 +269,7 @@ export default function Navbar() {
         setIsLoadingNotifications(false);
       }
     }
-  }, [activeRole, isAuthenticated, user?._id]);
+  }, [isAuthenticated, user?._id]);
 
   const handleLogout = async () => {
     closeMenus();
@@ -335,6 +339,7 @@ export default function Navbar() {
 
     closeMenus();
     setRoleSwitching(targetRole);
+    markRoleSwitchNavigation(targetRole);
 
     try {
       if (user.role !== targetRole) {
@@ -342,6 +347,10 @@ export default function Navbar() {
       }
 
       router.push(href);
+      window.setTimeout(clearRoleSwitchNavigation, 1500);
+    } catch (error) {
+      clearRoleSwitchNavigation();
+      throw error;
     } finally {
       setRoleSwitching("");
     }
