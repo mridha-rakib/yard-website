@@ -17,17 +17,14 @@ const page = () => {
     <div className="min-h-screen font-sans text-gray-900">
       <section className="bg-emerald-50/50 px-6 py-12 md:py-20">
         <div className="mx-auto grid max-w-7xl items-center gap-12 md:grid-cols-2">
-          <div>
+          <div className="max-w-2xl">
             <div className="mb-4 inline-flex items-center rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-900">
               YardHero Guarantee: If the job is not done right, we fix it or refund it.
             </div>
-            <h1 className="pr-6 text-4xl font-bold leading-tight text-emerald-950 md:text-5xl">
-              Fast, reliable yard work with fixed pricing and proof-based trust
+            <h1 className="max-w-2xl text-2xl font-bold leading-[1.16] text-emerald-950 md:text-4xl md:leading-[1.12]">
+              YardHero is an on-demand yard-work marketplace that gives homeowners upfront fixed pricing, requires photo-verified completion, and pays local workers instantly after the job is confirmed.
             </h1>
-            <p className="mb-8 mt-6 max-w-xl pr-10 text-lg text-emerald-700">
-              Get trusted local Heroes for mowing, cleanup, trimming, mulching, and more. Customers see the price before checkout, and workers get paid after verified completion.
-            </p>
-            <div className="mb-8 flex flex-col gap-4 sm:flex-row">
+            <div className="mb-8 mt-8 flex flex-col gap-4 sm:flex-row">
               <Link href="/book">
                 <button className="flex items-center justify-center gap-2 rounded-md bg-[#0A3019] px-8 py-3 font-semibold text-white transition-colors hover:bg-emerald-800">
                   <FaCalendarCheck color="#fff" />
