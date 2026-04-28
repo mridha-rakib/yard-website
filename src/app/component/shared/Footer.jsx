@@ -65,7 +65,13 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-5 lg:gap-12">
           <div>
-            <Image src="/footerlogo.png" alt="Footer Logo" width={184} height={52} />
+            <Image
+              src="/yaqrd-main.jpeg"
+              alt="Yard Heroes logo"
+              width={56}
+              height={56}
+              className="rounded-lg object-cover"
+            />
             <p className="mt-5 leading-relaxed text-slate-400">
               Professional yard care services when you need them most.
             </p>

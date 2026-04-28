@@ -12,6 +12,11 @@ const inter = Inter({
 export const metadata = {
   title: "Yard Hero",
   description: "Next.js Multi-role Website",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/yaqrd-main.jpeg",
+  },
 }
 
 export default function RootLayout({ children }) {

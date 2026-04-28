@@ -253,6 +253,8 @@ function BookingDetailsPageContent() {
 
   const status = statusConfig[job?.status] || statusConfig.new;
   const amount = job?.payment?.amount || job?.estimatedPrice || 0;
+  const jobSubtotal = job?.payment?.jobSubtotal || job?.estimatedPrice || amount;
+  const bookingFee = Number(job?.payment?.bookingFee || 0);
   const timeline = buildTimeline(job);
 
   return (
@@ -313,7 +315,7 @@ function BookingDetailsPageContent() {
 
                   <div className="rounded-2xl border border-[#e2e8e3] bg-[#fbfdfb] px-5 py-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7280]">
-                      Service Amount
+                      Checkout Total
                     </p>
                     <p className="mt-2 text-3xl font-bold text-[#0f172a]">
                       {formatCurrency(amount)}
@@ -460,7 +462,19 @@ function BookingDetailsPageContent() {
                 <h3 className="text-xl font-semibold text-[#0f172a]">Payment</h3>
                 <div className="mt-5 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-[#52606d]">Amount</span>
+                    <span className="text-sm text-[#52606d]">Job subtotal</span>
+                    <span className="text-sm font-semibold text-[#111827]">
+                      {formatCurrency(jobSubtotal)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-[#52606d]">Service Fee</span>
+                    <span className="text-sm font-semibold text-[#111827]">
+                      {formatCurrency(bookingFee)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-[#e2e8e3] pt-4">
+                    <span className="text-sm font-semibold text-[#52606d]">Total paid</span>
                     <span className="text-sm font-semibold text-[#111827]">
                       {formatCurrency(amount)}
                     </span>

@@ -30,6 +30,10 @@ const createService = (service) => ({
   pricingNote: service.pricingNote || "",
   requiresSqft: Boolean(service.requiresSqft),
   allowUnknownSqft: Boolean(service.allowUnknownSqft),
+  isActive: service.isActive !== false,
+  isDefaultService: Boolean(service.isDefaultService),
+  bundleEligible: Boolean(service.bundleEligible),
+  bundleGroupIds: Array.isArray(service.bundleGroupIds) ? service.bundleGroupIds : [],
 });
 
 const withPrice = (service) => {
@@ -369,12 +373,42 @@ export const DEFAULT_PRICING_CATEGORIES = [
 
 const cloneCategory = (category) => ({
   ...category,
-  services: category.services.map((service) => createService(service)),
+  title: category.title || category.label || "",
+  services: (category.services || [])
+    .filter((service) => service?.isActive !== false)
+    .map((service) =>
+      withPrice({
+        ...service,
+        icon: service.icon || "sparkles",
+        duration: service.duration || "",
+        description:
+          service.description ||
+          (service.pricingType === "fixed"
+            ? `Flat-rate ${service.title || "service"}.`
+            : `Automatic pricing for ${service.title || "service"}.`),
+        pricingSummary:
+          service.pricingSummary ||
+          (service.pricingType === "sqft"
+            ? `$${Number(service.minimumPrice || 0)} minimum or $${Number(
+                service.unitRate || 0
+              )} per sq ft`
+            : service.pricingType === "mulch"
+              ? `${Number(service.minimumYards || 0)}-yard minimum at $${Number(
+                  service.unitRate || 0
+                )}/yard`
+              : `$${Number(service.fixedPrice || 0)} fixed price`),
+        pricingNote: service.pricingNote || "",
+        requiresSqft: service.requiresSqft || service.pricingType === "sqft",
+      })
+    ),
 });
 
 export const clonePricingCategories = () => DEFAULT_PRICING_CATEGORIES.map(cloneCategory);
 
-export const normalizePricingCategories = () => clonePricingCategories();
+export const normalizePricingCategories = (categories = DEFAULT_PRICING_CATEGORIES) =>
+  (Array.isArray(categories) && categories.length ? categories : DEFAULT_PRICING_CATEGORIES).map(
+    cloneCategory
+  );
 
 export const findServiceById = (serviceId = "") => {
   const normalizedId = String(serviceId || "").trim();

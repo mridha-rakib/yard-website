@@ -10,6 +10,7 @@ const CHECKOUT_REQUEST_TIMEOUT_MS = 60000;
 const CHECKOUT_STATUS_TIMEOUT_MS = 60000;
 
 export const paymentApi = {
+  getPricingRules: () => apiClient.get("/payments/pricing-rules").then(unwrap),
   createJobCheckoutSession: (payload) =>
     apiClient
       .post("/payments/checkout/job-request", payload, {

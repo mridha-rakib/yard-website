@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, Shield } from "lucide-react";
@@ -115,10 +116,12 @@ const LoginPageContent = () => {
       >
         <div className="relative z-10 max-w-md text-center">
           <div className="flex items-center justify-center mb-8">
-            <img
-              src="/LoginLogo.png"
+            <Image
+              src="/yaqrd-main.jpeg"
               alt="Yard Heroes Logo"
-              className="w-full"
+              width={176}
+              height={256}
+              className="h-64 w-44 rounded-2xl object-cover shadow-xl"
             />
           </div>
 
@@ -133,9 +136,13 @@ const LoginPageContent = () => {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center justify-center mb-8">
-            <div className="bg-green-700 rounded-2xl p-3 mr-3">
-              <Shield className="w-8 h-8 text-white" />
-            </div>
+            <Image
+              src="/yaqrd-main.jpeg"
+              alt="Yard Heroes Logo"
+              width={56}
+              height={56}
+              className="mr-3 h-14 w-14 rounded-xl object-cover"
+            />
             <h1 className="text-2xl font-bold text-gray-900">Yard Heroes</h1>
           </div>
 

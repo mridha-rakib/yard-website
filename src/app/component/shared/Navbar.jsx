@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -423,7 +424,13 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex h-16 items-center gap-8">
           <Link href="/" className="flex shrink-0 items-center">
-            <img src="/header-logo-mark.png" alt="Yard Heroes" className="h-10 w-10" />
+            <Image
+              src="/yaqrd-main.jpeg"
+              alt="Yard Heroes"
+              width={44}
+              height={44}
+              className="h-11 w-11 rounded-md object-cover"
+            />
           </Link>
 
           <div className="hidden md:flex flex-1 items-center justify-center gap-6 text-sm font-medium">

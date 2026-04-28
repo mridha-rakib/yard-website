@@ -296,7 +296,7 @@ function HeroJobDetailsPageContent() {
     return <div className="min-h-screen bg-[#f6f8f6]" />;
   }
 
-  const paymentAmount = job?.payment?.amount || job?.estimatedPrice || 0;
+  const paymentAmount = job?.payment?.jobSubtotal || job?.estimatedPrice || 0;
   const platformFeePercentage = job?.payment?.platformFeePercentage || 12;
   const platformFee =
     job?.payment?.platformFee ?? Number(((paymentAmount * platformFeePercentage) / 100).toFixed(2));
@@ -567,7 +567,7 @@ function HeroJobDetailsPageContent() {
 
                 <div className="mt-5 space-y-3">
                   <div className="flex items-center justify-between text-sm text-[#52606d]">
-                    <span>Customer payment</span>
+                    <span>Job subtotal</span>
                     <span className="font-semibold text-[#111827]">
                       {formatCurrency(paymentAmount)}
                     </span>

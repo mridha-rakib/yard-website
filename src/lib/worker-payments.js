@@ -97,7 +97,9 @@ export const getHeroInitials = (name = "") =>
     .join("") || "YH";
 
 export const getPaymentDetailSummary = (payment = {}) => {
-  const amount = Number(payment?.amount || payment?.job?.estimatedPrice || 0);
+  const amount = Number(payment?.jobSubtotal || payment?.job?.estimatedPrice || payment?.amount || 0);
+  const bookingFee = Number(payment?.bookingFee || 0);
+  const totalCharged = Number(payment?.amount || amount + bookingFee || 0);
   const platformFee = Number(payment?.platformFee || 0);
   const workerPayout =
     payment?.workerPayout !== undefined
@@ -106,6 +108,8 @@ export const getPaymentDetailSummary = (payment = {}) => {
 
   return {
     amount,
+    bookingFee,
+    totalCharged,
     platformFee,
     workerPayout,
     platformFeePercentage: Number(payment?.platformFeePercentage || 12),

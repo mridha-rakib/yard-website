@@ -409,10 +409,10 @@ export default function AllJobsPage() {
                         <div className="mt-5 flex flex-wrap items-end gap-5">
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7280]">
-                              Customer Pays
+                              Job Subtotal
                             </p>
                             <p className="mt-2 text-4xl font-bold text-[#0f172a]">
-                              {formatCurrency(job.payment?.amount || job.estimatedPrice)}
+                              {formatCurrency(job.payment?.jobSubtotal || job.estimatedPrice)}
                             </p>
                           </div>
 
