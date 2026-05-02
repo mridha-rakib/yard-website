@@ -92,7 +92,7 @@ const ServicePricing = () => {
       <main className="px-6">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6 rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-center text-sm text-green-800">
-            YardHero pricing is automatic: fixed-price services stay flat, and measured services use the higher of the minimum price or the calculator rate.
+            Yard Hero pricing is automatic: fixed-price services stay flat, and measured services use the higher of the minimum price or the calculator rate.
           </div>
 
           <div className="flex flex-wrap justify-between gap-2 mb-8">

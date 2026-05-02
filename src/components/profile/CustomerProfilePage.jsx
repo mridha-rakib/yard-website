@@ -146,7 +146,7 @@ const getConversationPreview = (conversation) => {
 };
 
 const getPaymentHeadline = (payment) =>
-  payment?.job?.title || payment?.description || "Yard Heroes payment";
+  payment?.job?.title || payment?.description || "Yard Hero payment";
 
 const getPaymentSubtext = (payment) =>
   payment?.worker?.name

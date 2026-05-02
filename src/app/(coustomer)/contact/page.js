@@ -313,7 +313,7 @@ const ContactPage = () => {
               <Mail className="h-6 w-6 text-gray-700" />
             </div>
             <h3 className="mb-2 font-semibold text-gray-900">Email Us</h3>
-            <p className="mb-1 font-medium text-green-700">support@vardcare.com</p>
+            <p className="mb-1 font-medium text-green-700">yardheroinfo@gmail.com</p>
             <p className="text-sm text-gray-500">We&apos;ll respond within 24 hours</p>
           </div>
         </div>

@@ -19,12 +19,12 @@ const PricingPage = () => {
     {
       question: "What will I actually be billed for payment?",
       answer:
-        "YardHero shows the final fixed or calculated service price before checkout. Your payment method is secured up front, then funds are released only after the completed job is verified.",
+        "Yard Hero shows the final fixed or calculated service price before checkout. Your payment method is secured up front, then funds are released only after the completed job is verified.",
     },
     {
       question: "What if I'm not satisfied with my work?",
       answer:
-        "Every completed job requires a verification photo and verification video from the Hero. If the work is not done right, YardHero will fix it or refund it under the YardHero Guarantee.",
+        "Every completed job requires a verification photo and verification video from the Hero. If the work is not done right, Yard Hero will fix it or refund it under the Yard Hero Guarantee.",
     },
     {
       question: "Do I have to pay separately from a subscription?",

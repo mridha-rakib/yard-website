@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { Check, PackageCheck, ShieldCheck, Upload, X } from "lucide-react";
+import { Check, PackageCheck, Upload, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { buildPathWithSearchParams } from "@/lib/auth/auth-redirect";
 import { getApiErrorMessage } from "@/lib/api/http";
@@ -589,15 +589,11 @@ function BookYardWorkFormContent() {
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="mx-auto max-w-7xl">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-800">
-            <ShieldCheck className="h-4 w-4" />
-            YardHero Guarantee: If the job is not done right, we fix it or refund it.
-          </div>
-          <h1 className="mt-5 text-3xl font-bold text-gray-900 md:text-4xl">
+          <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">
             Book with automatic pricing, proof-based verification, and zero negotiation
           </h1>
           <p className="mt-3 text-gray-600">
-            Upload a few photos, describe the work, enter the size, and YardHero calculates the final price before checkout.
+            Upload a few photos, describe the work, enter the size, and Yard Hero calculates the final price before checkout.
           </p>
         </div>
 
@@ -1265,14 +1261,14 @@ function BookYardWorkFormContent() {
                   </div>
                 ) : (
                   <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
-                    Select a service to preview the automatic YardHero price.
+                    Select a service to preview the automatic Yard Hero price.
                   </div>
                 )}
 
                 <div className="space-y-3">
                   {[
                     "Your payment is collected securely through Stripe when you book.",
-                    "YardHero reviews completion proof before releasing the Hero payout.",
+                    "Yard Hero reviews completion proof before releasing the Hero payout.",
                     "Workers must upload both a verification photo and video before payout release.",
                   ].map((item) => (
                     <div key={item} className="flex items-start gap-2 text-sm text-gray-700">

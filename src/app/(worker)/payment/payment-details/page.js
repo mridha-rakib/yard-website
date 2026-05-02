@@ -306,9 +306,9 @@ function HeroPaymentDetailsPageContent() {
             </p>
             <p className="mt-1 text-sm text-emerald-700">
               {payment.status === "paid"
-                ? "Customer payment has been collected through Stripe. Hero payout is released after YardHero approves completion proof."
+                ? "Customer payment has been collected through Stripe. Hero payout is released after Yard Hero approves completion proof."
                 : payment.status === "authorized"
-                  ? "The customer payment is secured and will be released after YardHero approves the completion proof."
+                  ? "The customer payment is secured and will be released after Yard Hero approves the completion proof."
                   : "Check the status label above for the current payout state."}
             </p>
           </div>

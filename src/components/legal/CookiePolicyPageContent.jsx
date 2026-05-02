@@ -27,7 +27,7 @@ const FALLBACK_DESCRIPTION =
   "How cookies and related technologies are used across the platform.";
 const FALLBACK_DATE = "January 8, 2025";
 const FALLBACK_ACTIONS = [
-  { label: "privacy@yardpro.com", href: "mailto:privacy@yardpro.com", type: "mail" },
+  { label: "yardheroinfo@gmail.com", href: "mailto:yardheroinfo@gmail.com", type: "mail" },
   { label: "Contact Support", href: "/contact", type: "link" },
 ];
 

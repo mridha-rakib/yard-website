@@ -118,7 +118,7 @@ const LoginPageContent = () => {
           <div className="flex items-center justify-center mb-8">
             <Image
               src="/yaqrd-main.jpeg"
-              alt="Yard Heroes Logo"
+              alt="Yard Hero Logo"
               width={176}
               height={256}
               className="h-64 w-44 rounded-2xl object-cover shadow-xl"
@@ -138,12 +138,12 @@ const LoginPageContent = () => {
           <div className="lg:hidden flex items-center justify-center mb-8">
             <Image
               src="/yaqrd-main.jpeg"
-              alt="Yard Heroes Logo"
+              alt="Yard Hero Logo"
               width={56}
               height={56}
               className="mr-3 h-14 w-14 rounded-xl object-cover"
             />
-            <h1 className="text-2xl font-bold text-gray-900">Yard Heroes</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Yard Hero</h1>
           </div>
 
           <div>

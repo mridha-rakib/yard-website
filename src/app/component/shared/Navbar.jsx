@@ -205,7 +205,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [roleSwitching, setRoleSwitching] = useState("");
+  const [pendingRoleSwitch, setPendingRoleSwitch] = useState(null);
   const accountMenuRef = useRef(null);
   const notificationMenuRef = useRef(null);
   const pathname = usePathname();
@@ -239,6 +239,9 @@ export default function Navbar() {
     : [];
   const canBecomeHero = hasRole(user, ROLES.CUSTOMER) && !hasRole(user, ROLES.WORKER);
   const activeRole = user?.role || "";
+  const roleSwitching = pendingRoleSwitch?.role || "";
+  const activeToggleRole = roleSwitching || activeRole;
+  const isRoleSwitchPending = Boolean(pendingRoleSwitch);
 
   const closeMenus = () => {
     setAccountMenuOpen(false);
@@ -338,8 +341,14 @@ export default function Navbar() {
       return;
     }
 
+    const resolvedHref = href || getRoleDashboardHref(targetRole);
     closeMenus();
-    setRoleSwitching(targetRole);
+
+    if (user.role === targetRole && pathname === resolvedHref) {
+      return;
+    }
+
+    setPendingRoleSwitch({ role: targetRole, href: resolvedHref });
     markRoleSwitchNavigation(targetRole);
 
     try {
@@ -347,13 +356,11 @@ export default function Navbar() {
         await switchRole(targetRole);
       }
 
-      router.push(href);
-      window.setTimeout(clearRoleSwitchNavigation, 1500);
+      router.push(resolvedHref);
     } catch (error) {
       clearRoleSwitchNavigation();
+      setPendingRoleSwitch(null);
       throw error;
-    } finally {
-      setRoleSwitching("");
     }
   };
 
@@ -366,6 +373,25 @@ export default function Navbar() {
     closeMenus();
     router.push(href);
   };
+
+  useEffect(() => {
+    if (!pendingRoleSwitch) {
+      return undefined;
+    }
+
+    if (user?.role === pendingRoleSwitch.role && pathname === pendingRoleSwitch.href) {
+      clearRoleSwitchNavigation();
+      setPendingRoleSwitch(null);
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      clearRoleSwitchNavigation();
+      setPendingRoleSwitch(null);
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [pathname, pendingRoleSwitch, user?.role]);
 
   useEffect(() => {
     if (!accountMenuOpen && !notificationsOpen) {
@@ -426,7 +452,7 @@ export default function Navbar() {
           <Link href="/" className="flex shrink-0 items-center">
             <Image
               src="/yaqrd-main.jpeg"
-              alt="Yard Heroes"
+              alt="Yard Hero"
               width={44}
               height={44}
               className="h-11 w-11 rounded-md object-cover"
@@ -451,7 +477,7 @@ export default function Navbar() {
                 {roleToggleOptions.length ? (
                   <div className="inline-flex items-center rounded-full border border-[#d7e0d9] bg-[#f8faf8] p-1">
                     {roleToggleOptions.map((option) => {
-                      const isActiveRole = user.role === option.role;
+                      const isActiveRole = activeToggleRole === option.role;
                       const isBusy = roleSwitching === option.role;
 
                       return (
@@ -459,7 +485,7 @@ export default function Navbar() {
                           key={option.role}
                           type="button"
                           onClick={() => handleRoleSwitch(option.role, option.href)}
-                          disabled={isInitializing || Boolean(roleSwitching)}
+                          disabled={isInitializing || isRoleSwitchPending}
                           className={`rounded-full px-3 py-2 text-xs font-semibold transition-colors ${
                             isActiveRole
                               ? "bg-[#0A3019] text-white"
@@ -781,7 +807,7 @@ export default function Navbar() {
                 {roleToggleOptions.length ? (
                   <div className="flex items-center gap-2 rounded-2xl border border-[#d7e0d9] bg-[#f8faf8] p-1">
                     {roleToggleOptions.map((option) => {
-                      const isActiveRole = user.role === option.role;
+                      const isActiveRole = activeToggleRole === option.role;
                       const isBusy = roleSwitching === option.role;
 
                       return (
@@ -789,7 +815,7 @@ export default function Navbar() {
                           key={option.role}
                           type="button"
                           onClick={() => handleRoleSwitch(option.role, option.href)}
-                          disabled={isInitializing || Boolean(roleSwitching)}
+                          disabled={isInitializing || isRoleSwitchPending}
                           className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
                             isActiveRole
                               ? "bg-[#0A3019] text-white"

@@ -63,7 +63,7 @@ const HelpSupportPage = () => {
   const faqs = [
     {
       question: 'When do I get paid?',
-      answer: 'Payments are processed within 24 hours after you complete a job and the customer confirms completion. The funds will be transferred to your selected payment method (Cash App, Venmo, Zelle, or PayPal).'
+      answer: 'Payments are processed through Stripe Express after you complete a job and the customer confirms completion. Stripe is secure, trustworthy, and transfers payouts to your connected bank account.'
     },
     {
       question: 'How does the 12% platform fee work?',
@@ -172,10 +172,10 @@ const HelpSupportPage = () => {
                   <div className="text-left">
                     <p className="font-medium text-gray-900 mb-1">Email Support</p>
                     <a 
-                      href="mailto:support@network.com" 
+                      href="mailto:yardheroinfo@gmail.com"
                       className="text-sm text-emerald-600 hover:text-emerald-700"
                     >
-                      support@network.com
+                      yardheroinfo@gmail.com
                     </a>
                   </div>
                 </div>

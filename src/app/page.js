@@ -7,7 +7,6 @@ import {
   FaClock,
   FaStar,
 } from "react-icons/fa";
-import { RiPoliceBadgeFill } from "react-icons/ri";
 import { MdLocalPolice } from "react-icons/md";
 import Banner from "./component/Banner";
 import { Leaf, Scissors, Sparkles, Trees } from "lucide-react";
@@ -18,12 +17,13 @@ const page = () => {
       <section className="bg-emerald-50/50 px-6 py-12 md:py-20">
         <div className="mx-auto grid max-w-7xl items-center gap-12 md:grid-cols-2">
           <div className="max-w-2xl">
-            <div className="mb-4 inline-flex items-center rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-900">
-              YardHero Guarantee: If the job is not done right, we fix it or refund it.
-            </div>
             <h1 className="max-w-2xl text-2xl font-bold leading-[1.16] text-emerald-950 md:text-4xl md:leading-[1.12]">
-              YardHero is an on-demand yard-work marketplace that gives homeowners upfront fixed pricing, requires photo-verified completion, and pays local workers instantly after the job is confirmed.
+              Book trusted yard work in seconds.
             </h1>
+            <p className="mt-4 max-w-xl text-sm font-medium leading-6 text-gray-700 md:text-base">
+              Instantly schedule yard work at upfront prices. Verified local workers. Photo
+              proof of completion.
+            </p>
             <div className="mb-8 mt-8 flex flex-col gap-4 sm:flex-row">
               <Link href="/book">
                 <button className="flex items-center justify-center gap-2 rounded-md bg-[#0A3019] px-8 py-3 font-semibold text-white transition-colors hover:bg-emerald-800">
@@ -73,7 +73,7 @@ const page = () => {
       <section className="bg-white px-6 py-20">
         <div className="mx-auto max-w-6xl text-center">
           <h2 className="mb-4 text-3xl font-bold text-emerald-950">
-            Why Choose YardHero?
+            Why Choose Yard Hero?
           </h2>
           <p className="mx-auto mb-12 max-w-2xl text-gray-600">
             Clear pricing, trusted proof, and local professionals who can start building their portfolio immediately.
@@ -86,7 +86,7 @@ const page = () => {
               description="Book today and get matched quickly when you need urgent yard work."
             />
             <FeatureCard
-              icon={<RiPoliceBadgeFill className="text-white" size={20} />}
+              icon={<MdLocalPolice className="text-white" size={20} />}
               title="Trusted Heroes"
               description="Workers build profiles and portfolios so customers can review quality before the job."
             />
@@ -105,7 +105,7 @@ const page = () => {
             Popular Services
           </h2>
           <p className="mx-auto mb-12 max-w-2xl text-gray-600">
-            Professional outdoor service categories supported by the YardHero pricing engine.
+            Professional outdoor service categories supported by the Yard Hero pricing engine.
           </p>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">

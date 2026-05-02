@@ -67,7 +67,7 @@ const Footer = () => {
           <div>
             <Image
               src="/yaqrd-main.jpeg"
-              alt="Yard Heroes logo"
+              alt="Yard Hero logo"
               width={56}
               height={56}
               className="rounded-lg object-cover"
@@ -153,10 +153,10 @@ const Footer = () => {
             <ul className="space-y-3">
               <li>
                 <a
-                  href="mailto:hello@yardheroes.com"
+                  href="mailto:yardheroinfo@gmail.com"
                   className="flex items-center gap-2 text-slate-400 transition-colors hover:text-emerald-400"
                 >
-                  hello@yardheroes.com
+                  yardheroinfo@gmail.com
                 </a>
               </li>
             </ul>
@@ -167,7 +167,7 @@ const Footer = () => {
       <div className="border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-            <p className="text-sm text-slate-400">&copy; 2026 YardHeroes. All rights reserved.</p>
+            <p className="text-sm text-slate-400">&copy; 2026 Yard Hero. All rights reserved.</p>
             <div className="flex flex-wrap justify-center gap-6">
               {legalLinks.map((document) => (
                 <Link

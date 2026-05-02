@@ -140,8 +140,8 @@ const PRIVACY_POLICY_DEFAULT = {
         "If you have any questions about this Privacy Policy or how we handle your personal information, we're here to help.",
       actions: [
         {
-          label: "privacy@yardpro.com",
-          href: "mailto:privacy@yardpro.com",
+          label: "yardheroinfo@gmail.com",
+          href: "mailto:yardheroinfo@gmail.com",
           type: "mail",
         },
         {

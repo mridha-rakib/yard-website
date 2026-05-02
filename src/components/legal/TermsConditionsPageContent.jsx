@@ -17,14 +17,14 @@ const TERMS_DEFAULT = {
     introduction: {
       title: "1. Introduction",
       paragraphs: [
-        "Welcome to YardWork. These Terms & Conditions govern your use of our platform, which connects customers seeking yard work services with qualified Heroes. By accessing or using our platform, you agree to be bound by these terms.",
+        "Welcome to Yard Hero. These Terms & Conditions govern your use of our platform, which connects customers seeking yard work services with qualified Heroes. By accessing or using our platform, you agree to be bound by these terms.",
         "Our platform serves as a marketplace to facilitate connections between customers and Heroes. We are not an employer, and we do not directly provide yard work services.",
       ],
     },
     eligibility: {
       title: "2. Eligibility & Account Responsibility",
       intro:
-        "To use YardWork, you must be at least 18 years old and capable of forming a legally binding contract. By creating an account, you agree to:",
+        "To use Yard Hero, you must be at least 18 years old and capable of forming a legally binding contract. By creating an account, you agree to:",
       items: [
         "Provide accurate, current, and complete information during registration",
         "Maintain and promptly update your account information",
@@ -36,12 +36,12 @@ const TERMS_DEFAULT = {
     platformRole: {
       title: "3. Platform Role",
       intro:
-        "YardWork operates as a connection service only. We provide the technology platform that enables customers and Heroes to find and communicate with each other.",
+        "Yard Hero operates as a connection service only. We provide the technology platform that enables customers and Heroes to find and communicate with each other.",
       emphasis: "Important clarifications:",
       items: [
         "We do not employ Heroes or control how they perform services",
         "We do not guarantee the quality, safety, or legality of services provided",
-        "Heroes are Independent Hero Contractors, not employees of YardWork",
+        "Heroes are Independent Hero Contractors, not employees of Yard Hero",
         "All agreements for services are directly between customers and Independent Hero Contractors",
         "We facilitate payment processing but are not party to the service contract",
       ],
@@ -68,7 +68,7 @@ const TERMS_DEFAULT = {
     payments: {
       title: "5. Payments & Platform Fees",
       intro:
-        "YardWork facilitates secure payment processing between customers and Heroes. Here's how it works:",
+        "Yard Hero facilitates secure payment processing between customers and Heroes. Here's how it works:",
       feeTitle: "Platform Fee: 12%",
       feeDescription:
         "We charge a 12% service fee on all completed transactions. This fee covers payment processing, platform maintenance, customer support, and dispute resolution services.",

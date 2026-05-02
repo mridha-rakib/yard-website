@@ -5,10 +5,7 @@ const Banner = () => {
   return (
     <div className="bg-emerald-950 px-6 py-16 text-center text-white">
       <div className="mx-auto max-w-4xl">
-        <div className="inline-flex items-center rounded-full border border-emerald-700 bg-emerald-900/50 px-4 py-2 text-sm font-semibold text-emerald-100">
-          YardHero Guarantee: If the job is not done right, we fix it or refund it.
-        </div>
-        <h2 className="mb-4 mt-5 text-3xl font-bold">
+        <h2 className="mb-4 text-3xl font-bold">
           Ready to book with fixed pricing and proof-based trust?
         </h2>
         <p className="mb-10 text-lg text-emerald-200/80">

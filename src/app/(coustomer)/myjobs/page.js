@@ -90,7 +90,7 @@ const getPendingNote = (job) => {
   }
 
   if (job?.status === "pending_verification") {
-    return "The Hero submitted photo and video proof. YardHero is reviewing the job before payment release.";
+    return "The Hero submitted photo and video proof. Yard Hero is reviewing the job before payment release.";
   }
 
   return "";

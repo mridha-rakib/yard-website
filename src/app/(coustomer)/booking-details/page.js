@@ -79,11 +79,11 @@ const formatPaymentStatus = (value = "") =>
     .join(" ");
 const getPaymentSummaryCopy = (paymentStatus = "") => {
   if (paymentStatus === "paid") {
-    return "Your payment was collected securely through Stripe. Hero payout is released only after YardHero approves completion proof.";
+    return "Your payment was collected securely through Stripe. Hero payout is released only after Yard Hero approves completion proof.";
   }
 
   if (paymentStatus === "authorized") {
-    return "Your payment method is in a secure hold. Funds are released only after the Hero submits proof and YardHero approves the job.";
+    return "Your payment method is in a secure hold. Funds are released only after the Hero submits proof and Yard Hero approves the job.";
   }
 
   if (paymentStatus === "failed") {
@@ -161,13 +161,13 @@ const buildTimeline = (job) => [
         : "Pending"),
   },
   {
-    label: "YardHero approval",
+    label: "Yard Hero approval",
     complete: ["completed", "paid"].includes(job?.status),
     detail:
       formatDateTime(job?.booking?.verificationApprovedAt) ||
       (["completed", "paid"].includes(job?.status)
         ? "Approved"
-        : "Waiting for YardHero review"),
+        : "Waiting for Yard Hero review"),
   },
 ];
 

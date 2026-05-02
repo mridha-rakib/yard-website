@@ -57,7 +57,7 @@ const getPaymentStatusCopy = (paymentStatus = "") => {
   }
 
   if (paymentStatus === "authorized") {
-    return "In secure hold until YardHero approves completion proof";
+    return "In secure hold until Yard Hero approves completion proof";
   }
 
   if (paymentStatus === "failed") {
@@ -72,7 +72,7 @@ const getPaymentStatusCopy = (paymentStatus = "") => {
 };
 const getCompletionFeedback = () => ({
   type: "success",
-  message: "Proof submitted. YardHero will review the photo and video before payout release.",
+  message: "Proof submitted. Yard Hero will review the photo and video before payout release.",
 });
 
 const formatLocation = (job) =>
@@ -684,7 +684,7 @@ function HeroJobDetailsPageContent() {
                   {job.status === "in_progress" ? (
                     <>
                       <div className="rounded-2xl border border-[#d8e4db] bg-[#fbfdfb] p-4 text-sm text-[#52606d]">
-                        Upload both a verification photo and a verification video. YardHero will review them before releasing your payout.
+                        Upload both a verification photo and a verification video. Yard Hero will review them before releasing your payout.
                       </div>
 
                       <label className="text-sm font-medium text-[#334155]">
@@ -764,7 +764,7 @@ function HeroJobDetailsPageContent() {
 
                   {job.status === "pending_verification" ? (
                     <div className="rounded-2xl border border-[#f2dfb5] bg-[#fffaf0] px-4 py-3 text-sm text-[#9a6700]">
-                      Your photo and video proof are under YardHero review. Payment will stay on hold until approval.
+                      Your photo and video proof are under Yard Hero review. Payment will stay on hold until approval.
                     </div>
                   ) : null}
 

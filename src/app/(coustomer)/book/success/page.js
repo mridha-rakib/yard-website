@@ -73,7 +73,7 @@ const workflowSteps = [
   {
     number: "4",
     title: "Approval and Release",
-    description: "YardHero reviews the proof and then releases payment to the worker.",
+    description: "Yard Hero reviews the proof and then releases payment to the worker.",
     icon: CircleDollarSign,
     tone: {
       number: "bg-[#e5e7eb] text-[#9ca3af]",
@@ -262,9 +262,9 @@ function BookingSuccessScreen({ payment, job }) {
             </p>
 
             <div className="mt-5 flex items-center justify-center text-sm font-medium text-[#374151]">
-              <a href="mailto:support@yardhero.com" className="inline-flex items-center gap-2 hover:text-[#143f22]">
+              <a href="mailto:yardheroinfo@gmail.com" className="inline-flex items-center gap-2 hover:text-[#143f22]">
                 <Mail className="h-4 w-4 text-[#143f22]" />
-                support@yardhero.com
+                yardheroinfo@gmail.com
               </a>
             </div>
           </div>

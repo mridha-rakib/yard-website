@@ -12,7 +12,7 @@ const page = () => {
           <p className="text-sm text-gray-600">Last updated: January 2026</p>
           <div className="bg-[#eff6ff] border-[#60a5fa] border-l-8 mt-5 p-5">
             <p className="text-[#1E40AF]">
-              Please read these terms carefully before using Yard Hero's
+              Please read these terms carefully before using Yard Hero&apos;s
               platform. By accessing or using our service, you agree to be bound
               by these terms.
             </p>
@@ -92,7 +92,7 @@ const page = () => {
           <p className="text-gray-700 leading-relaxed mb-4">
             Yard Hero operates as a marketplace platform that connects customers
             seeking yard work and home maintenance services with independent
-            contractors ("Independent Hero Contractors"). We facilitate these connections but do not
+            contractors (&quot;Independent Hero Contractors&quot;). We facilitate these connections but do not
             directly provide the services.
             <br />
             By using our platform, you acknowledge that all work performed is
@@ -259,7 +259,7 @@ const page = () => {
               Your Safety & Fair Pay Matter
             </h3>
             <p className="text-emerald-100 max-w-2xl mx-auto">
-              We're committed to ensuring you feel safe and fairly compensated
+              We&apos;re committed to ensuring you feel safe and fairly compensated
               for your hard work. Our team monitors all jobs and payments to
               protect Heroes like you.
             </p>

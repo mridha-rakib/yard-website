@@ -217,7 +217,7 @@ export default function JobChatPanel({ jobId = "", job = null, viewerRole = "cus
                         }`}
                       >
                         <span className="font-semibold">
-                          {message?.senderName || "YardHero user"}
+                          {message?.senderName || "Yard Hero user"}
                         </span>
                         <span>{formatDateTime(message?.createdAt) || "Just now"}</span>
                       </div>

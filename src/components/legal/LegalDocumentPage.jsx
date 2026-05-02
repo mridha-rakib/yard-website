@@ -83,7 +83,7 @@ export default function LegalDocumentPage({ documentId }) {
 
   const title = getDisplayTitle(documentId, document?.name, definition?.title);
   const summary =
-    definition?.summary || "Information about how Yard Heroes handles legal and compliance topics.";
+    definition?.summary || "Information about how Yard Hero handles legal and compliance topics.";
   const layout = definition?.layout || "document";
   const isPrivacyLayout = layout === "privacy";
   const isDocumentLayout = layout === "document";
@@ -123,7 +123,7 @@ export default function LegalDocumentPage({ documentId }) {
                   : ""
               }`}
             >
-              Yard Heroes Legal
+              Yard Hero Legal
             </p>
             <h1 className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-[#11261b] sm:text-[2.6rem]">
               {title}
