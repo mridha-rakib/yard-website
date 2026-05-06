@@ -82,13 +82,13 @@ const page = () => {
           <div className="grid gap-6 md:grid-cols-3">
             <FeatureCard
               icon={<FaClock className="text-white" size={20} />}
-              title="Same Day Service"
-              description="Book today and get matched quickly when you need urgent yard work."
+              title="Get Assigned a local Hero"
+              description="Book today and get assigned a local professional to get your yard work done"
             />
             <FeatureCard
               icon={<MdLocalPolice className="text-white" size={20} />}
               title="Trusted Heroes"
-              description="Workers build profiles and portfolios so customers can review quality before the job."
+              description="Professional landscapers that take on more bookings!"
             />
             <FeatureCard
               icon={<FaDollarSign className="text-white" size={20} />}
