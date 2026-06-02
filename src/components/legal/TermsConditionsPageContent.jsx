@@ -82,8 +82,38 @@ const TERMS_DEFAULT = {
         "Refunds are processed according to our dispute resolution policy",
       ],
     },
+    refundPolicy: {
+      title: "6. Refund & Cancellation Policy",
+      intro:
+        "YardHero is committed to providing a fair experience for both customers and independent Heroes on the platform. Refund eligibility is determined based on the circumstances of the booking.",
+      fullRefundsTitle: "Full Refunds (100%)",
+      fullRefundsIntro:
+        "Customers are eligible for a full 100% refund only under the following conditions:",
+      fullRefundItems: [
+        "Property damage directly caused during the service",
+        "YardHero is unable to assign a Hero to the booking request within the active booking period",
+      ],
+      partialRefundsTitle: "Partial Refunds (90%)",
+      partialRefundsIntro:
+        "Customers will receive a 90% refund in situations including, but not limited to:",
+      partialRefundItems: [
+        "Incorrect square footage or property size entered during booking",
+        "Additional work or services requested in the job description that were not included in the original booking",
+        "Outside purchases or materials requested for the Hero after booking",
+        "Accidental or mistaken bookings submitted by the customer",
+        "Customer-requested cancellations prior to job completion that are determined to be customer fault",
+      ],
+      retentionNote:
+        "The remaining 10% is retained to cover non-refundable payment processing fees, administrative costs, and platform operations.",
+      additionalNotesTitle: "Additional Notes",
+      additionalNotesItems: [
+        "Once a Hero is actively en route to the property or has begun work, only partial refunds may be issued depending on the circumstances.",
+        "Refund requests submitted after a job has been fully completed may be denied.",
+        "YardHero reserves the right to review all refund requests and determine eligibility on a case-by-case basis.",
+      ],
+    },
     disputes: {
-      title: "6. Job Completion & Disputes",
+      title: "7. Job Completion & Disputes",
       intro:
         "We encourage direct communication between customers and Heroes to resolve any issues. However, if disputes arise:",
       items: [
@@ -117,11 +147,31 @@ const getListItems = (listNode) =>
     .map((item) => getElementText(item))
     .filter(Boolean);
 
+const normalizeSectionTitle = (value = "") =>
+  normalizeText(value)
+    .replace(/^\d+\.\s*/, "")
+    .replace(/\s*&\s*/g, " & ")
+    .toLowerCase();
+
+const findSectionByTitle = (sections, titles = []) => {
+  const titleList = Array.isArray(titles) ? titles : [titles];
+  const normalizedTitles = titleList.map((title) => normalizeSectionTitle(title));
+
+  return (
+    sections.find((section) => {
+      const sectionTitle = getElementText(getFirstDirectChild(section, "h2"));
+      const normalizedSectionTitle = normalizeSectionTitle(sectionTitle);
+
+      return (
+        titleList.some((title) => sectionTitle.toLowerCase() === title.toLowerCase()) ||
+        normalizedTitles.includes(normalizedSectionTitle)
+      );
+    }) || null
+  );
+};
+
 const getSectionByTitle = (sections, title, fallbackIndex) =>
-  sections.find(
-    (section) =>
-      getElementText(getFirstDirectChild(section, "h2")).toLowerCase() === title.toLowerCase()
-  ) || sections[fallbackIndex] || null;
+  findSectionByTitle(sections, title) || sections[fallbackIndex] || null;
 
 const formatLastUpdatedLabel = (value) => {
   if (!value) {
@@ -161,7 +211,19 @@ const buildTermsContent = (body = "", updatedAt = null) => {
   const platformRoleSection = getSectionByTitle(sections, "3. Platform Role", 2);
   const jobRulesSection = getSectionByTitle(sections, "4. Job Posting & Acceptance Rules", 3);
   const paymentsSection = getSectionByTitle(sections, "5. Payments & Platform Fees", 4);
-  const disputesSection = getSectionByTitle(sections, "6. Job Completion & Disputes", 5);
+  const refundPolicySection = findSectionByTitle(sections, [
+    "6. Refund & Cancellation Policy",
+    "Refund & Cancellation Policy",
+  ]);
+  const disputesSection =
+    findSectionByTitle(sections, [
+      "7. Job Completion & Disputes",
+      "6. Job Completion & Disputes",
+      "Job Completion & Disputes",
+    ]) ||
+    sections[6] ||
+    sections[5] ||
+    null;
 
   const introParagraphs = getDirectChildren(introductionSection, "p");
   const jobRulesHeadings = getDirectChildren(jobRulesSection, "h3");
@@ -170,6 +232,9 @@ const buildTermsContent = (body = "", updatedAt = null) => {
   const paymentsBlockquote = getFirstDirectChild(paymentsSection, "blockquote");
   const paymentsBlockquoteParagraphs = getDirectChildren(paymentsBlockquote, "p");
   const paymentsStrong = paymentsBlockquote?.querySelector("strong");
+  const refundPolicyHeadings = getDirectChildren(refundPolicySection, "h3");
+  const refundPolicyParagraphs = getDirectChildren(refundPolicySection, "p");
+  const refundPolicyLists = getDirectChildren(refundPolicySection, "ul");
 
   return {
     heroDescription:
@@ -246,6 +311,43 @@ const buildTermsContent = (body = "", updatedAt = null) => {
           getListItems(getDirectChildren(paymentsSection, "ul")[0]).length > 0
             ? getListItems(getDirectChildren(paymentsSection, "ul")[0])
             : fallback.sections.payments.items,
+      },
+      refundPolicy: {
+        title:
+          getElementText(getFirstDirectChild(refundPolicySection, "h2")) ||
+          fallback.sections.refundPolicy.title,
+        intro:
+          getElementText(refundPolicyParagraphs[0]) || fallback.sections.refundPolicy.intro,
+        fullRefundsTitle:
+          getElementText(refundPolicyHeadings[0]) ||
+          fallback.sections.refundPolicy.fullRefundsTitle,
+        fullRefundsIntro:
+          getElementText(refundPolicyParagraphs[1]) ||
+          fallback.sections.refundPolicy.fullRefundsIntro,
+        fullRefundItems:
+          getListItems(refundPolicyLists[0]).length > 0
+            ? getListItems(refundPolicyLists[0])
+            : fallback.sections.refundPolicy.fullRefundItems,
+        partialRefundsTitle:
+          getElementText(refundPolicyHeadings[1]) ||
+          fallback.sections.refundPolicy.partialRefundsTitle,
+        partialRefundsIntro:
+          getElementText(refundPolicyParagraphs[2]) ||
+          fallback.sections.refundPolicy.partialRefundsIntro,
+        partialRefundItems:
+          getListItems(refundPolicyLists[1]).length > 0
+            ? getListItems(refundPolicyLists[1])
+            : fallback.sections.refundPolicy.partialRefundItems,
+        retentionNote:
+          getElementText(refundPolicyParagraphs[3]) ||
+          fallback.sections.refundPolicy.retentionNote,
+        additionalNotesTitle:
+          getElementText(refundPolicyHeadings[2]) ||
+          fallback.sections.refundPolicy.additionalNotesTitle,
+        additionalNotesItems:
+          getListItems(refundPolicyLists[2]).length > 0
+            ? getListItems(refundPolicyLists[2])
+            : fallback.sections.refundPolicy.additionalNotesItems,
       },
       disputes: {
         title:
@@ -451,6 +553,46 @@ export default function TermsConditionsPageContent() {
                   {termsContent.sections.payments.processTitle}
                 </h3>
                 <SectionList items={termsContent.sections.payments.items} />
+              </section>
+
+              <section className="space-y-[22px]">
+                <h2 className="text-[30px] font-bold leading-9 tracking-[-0.005em] text-[#202326]">
+                  {termsContent.sections.refundPolicy.title}
+                </h2>
+                <p className="max-w-[838px] text-[18px] leading-[30px] tracking-[-0.5px] text-[#374151]">
+                  {termsContent.sections.refundPolicy.intro}
+                </p>
+
+                <div className="space-y-6">
+                  <h3 className="text-[24px] font-semibold leading-8 tracking-[-0.005em] text-[#202326]">
+                    {termsContent.sections.refundPolicy.fullRefundsTitle}
+                  </h3>
+                  <p className="max-w-[838px] text-[18px] leading-[30px] tracking-[-0.5px] text-[#374151]">
+                    {termsContent.sections.refundPolicy.fullRefundsIntro}
+                  </p>
+                  <SectionList items={termsContent.sections.refundPolicy.fullRefundItems} />
+                </div>
+
+                <div className="space-y-6">
+                  <h3 className="text-[24px] font-semibold leading-8 tracking-[-0.005em] text-[#202326]">
+                    {termsContent.sections.refundPolicy.partialRefundsTitle}
+                  </h3>
+                  <p className="max-w-[838px] text-[18px] leading-[30px] tracking-[-0.5px] text-[#374151]">
+                    {termsContent.sections.refundPolicy.partialRefundsIntro}
+                  </p>
+                  <SectionList items={termsContent.sections.refundPolicy.partialRefundItems} />
+                </div>
+
+                <p className="max-w-[838px] text-[18px] leading-[30px] tracking-[-0.5px] text-[#374151]">
+                  {termsContent.sections.refundPolicy.retentionNote}
+                </p>
+
+                <div className="space-y-6">
+                  <h3 className="text-[24px] font-semibold leading-8 tracking-[-0.005em] text-[#202326]">
+                    {termsContent.sections.refundPolicy.additionalNotesTitle}
+                  </h3>
+                  <SectionList items={termsContent.sections.refundPolicy.additionalNotesItems} />
+                </div>
               </section>
 
               <section className="space-y-[19px]">
