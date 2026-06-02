@@ -22,6 +22,7 @@ import {
   buildPathWithSearchParams,
 } from "@/lib/auth/auth-redirect";
 import JobChatPanel from "@/components/chat/JobChatPanel";
+import { resolveApiMediaUrl } from "@/lib/media-url";
 import { useRequiredRole } from "@/lib/auth/use-required-role";
 import { formatPrice } from "@/lib/pricing-content";
 import { formatDate, formatDateTime } from "@/lib/time";
@@ -256,6 +257,9 @@ function BookingDetailsPageContent() {
   const jobSubtotal = job?.payment?.jobSubtotal || job?.estimatedPrice || amount;
   const bookingFee = Number(job?.payment?.bookingFee || 0);
   const timeline = buildTimeline(job);
+  const jobPhotoUrls = Array.isArray(job?.photos)
+    ? job.photos.map(resolveApiMediaUrl).filter(Boolean)
+    : [];
 
   return (
     <div className="min-h-screen bg-[#f6f8f6] py-8">
@@ -364,17 +368,19 @@ function BookingDetailsPageContent() {
                   {job.jobDescription || "No job description was provided."}
                 </p>
 
-                {Array.isArray(job.photos) && job.photos.length ? (
+                {jobPhotoUrls.length ? (
                   <div className="mt-8">
                     <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#6b7280]">
                       Uploaded Photos
                     </h4>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      {job.photos.map((photo, index) => (
+                      {jobPhotoUrls.map((photoUrl, index) => (
                         <img
-                          key={`${photo}-${index}`}
-                          src={photo}
+                          key={`${photoUrl}-${index}`}
+                          src={photoUrl}
                           alt={`Job photo ${index + 1}`}
+                          loading="lazy"
+                          decoding="async"
                           className="h-40 w-full rounded-2xl object-cover"
                         />
                       ))}

@@ -1,5 +1,5 @@
 import { optimizeProfilePhotoFile } from "./profile-photo";
-import { API_ORIGIN } from "./api/config";
+import { resolveApiMediaUrl } from "./media-url";
 
 export const PROOF_VIDEO_MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 export const PROOF_VIDEO_REQUIREMENTS = "MP4, MOV, or WebM up to 25MB.";
@@ -51,24 +51,4 @@ export const getProofUploadErrorMessage = (error) => {
   return message;
 };
 
-export const resolveProofMediaUrl = (value = "") => {
-  const normalizedValue = String(value || "").trim();
-
-  if (!normalizedValue) {
-    return "";
-  }
-
-  if (
-    normalizedValue.startsWith("data:") ||
-    normalizedValue.startsWith("http://") ||
-    normalizedValue.startsWith("https://")
-  ) {
-    return normalizedValue;
-  }
-
-  if (normalizedValue.startsWith("/")) {
-    return `${API_ORIGIN}${normalizedValue}`;
-  }
-
-  return normalizedValue;
-};
+export const resolveProofMediaUrl = resolveApiMediaUrl;

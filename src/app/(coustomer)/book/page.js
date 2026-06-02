@@ -11,6 +11,7 @@ import {
   buildBookServiceQuery,
   getSelectedServiceFromSearchParams,
 } from "@/lib/booking-service";
+import { optimizeProfilePhotoFile } from "@/lib/profile-photo";
 import {
   calculateServiceQuote,
   clonePricingCategories,
@@ -36,14 +37,6 @@ const createInitialFormData = () => ({
   sqft: "",
   depthIn: "3",
 });
-
-const toDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("We could not process that file."));
-    reader.readAsDataURL(file);
-  });
 
 function BookYardWorkFormContent() {
   const router = useRouter();
@@ -440,7 +433,7 @@ function BookYardWorkFormContent() {
         files.map(async (file) => ({
           id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           name: file.name,
-          url: await toDataUrl(file),
+          url: await optimizeProfilePhotoFile(file),
         }))
       );
 

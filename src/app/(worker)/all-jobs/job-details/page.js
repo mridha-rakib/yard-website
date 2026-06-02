@@ -22,6 +22,7 @@ import {
   buildPathWithSearchParams,
 } from "@/lib/auth/auth-redirect";
 import JobChatPanel from "@/components/chat/JobChatPanel";
+import { resolveApiMediaUrl } from "@/lib/media-url";
 import {
   getProofUploadErrorMessage,
   optimizeProofPhotoFile,
@@ -307,6 +308,12 @@ function HeroJobDetailsPageContent() {
     .map((line) => line.trim())
     .filter(Boolean);
   const timeline = buildTimeline(job);
+  const jobPhotoUrls = Array.isArray(job?.photos)
+    ? job.photos.map(resolveApiMediaUrl).filter(Boolean)
+    : [];
+  const verificationPhotoUrls = Array.isArray(job?.booking?.verificationPhotoUrls)
+    ? job.booking.verificationPhotoUrls.map(resolveApiMediaUrl).filter(Boolean)
+    : [];
   const statusTone =
     job?.status === "completed"
       ? "bg-[#f3f4f6] text-[#4b5563]"
@@ -494,16 +501,18 @@ function HeroJobDetailsPageContent() {
               <section className="rounded-[28px] border border-[#d8e4db] bg-white p-6 md:p-8">
                 <h3 className="text-xl font-semibold text-[#0f172a]">Job Photos</h3>
 
-                {Array.isArray(job.photos) && job.photos.length > 0 ? (
+                {jobPhotoUrls.length > 0 ? (
                   <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {job.photos.map((photo, index) => (
+                    {jobPhotoUrls.map((photoUrl, index) => (
                       <div
-                        key={`${photo}-${index}`}
+                        key={`${photoUrl}-${index}`}
                         className="overflow-hidden rounded-2xl border border-[#e2e8e3] bg-[#f8faf8]"
                       >
                         <img
-                          src={photo}
+                          src={photoUrl}
                           alt={`Job photo ${index + 1}`}
+                          loading="lazy"
+                          decoding="async"
                           className="h-48 w-full object-cover"
                         />
                       </div>
@@ -522,14 +531,15 @@ function HeroJobDetailsPageContent() {
                     Completion Proof
                   </h3>
 
-                  {Array.isArray(job.booking?.verificationPhotoUrls) &&
-                  job.booking.verificationPhotoUrls.length ? (
+                  {verificationPhotoUrls.length ? (
                     <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                      {job.booking.verificationPhotoUrls.map((photo, index) => (
+                      {verificationPhotoUrls.map((photoUrl, index) => (
                         <img
-                          key={`${photo}-${index}`}
-                          src={photo}
+                          key={`${photoUrl}-${index}`}
+                          src={photoUrl}
                           alt={`Verification photo ${index + 1}`}
+                          loading="lazy"
+                          decoding="async"
                           className="h-48 w-full rounded-2xl object-cover"
                         />
                       ))}
