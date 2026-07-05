@@ -14,7 +14,7 @@ const PricingPage = () => {
     {
       question: "Is there a minimum charge per project?",
       answer:
-        "Yes. Many services use a minimum price, and the final quote is the higher of that minimum or the calculator result based on square footage. Mulching uses cubic-yard logic with a 5-yard minimum.",
+        "Yes. Many services use a minimum price, and the final quote is the higher of that minimum or the calculator result based on square footage. Mulching uses cubic-yard logic with a 5.2-yard minimum.",
     },
     {
       question: "What will I actually be billed for payment?",
