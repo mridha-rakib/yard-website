@@ -3,7 +3,6 @@ import React from "react";
 import {
   FaCalendarCheck,
   FaDollarSign,
-  FaCheck,
   FaClock,
   FaStar,
 } from "react-icons/fa";
@@ -18,6 +17,7 @@ const page = () => {
         <div className="mx-auto grid max-w-7xl items-center gap-12 md:grid-cols-2">
           <div className="max-w-2xl">
             <h1 className="max-w-2xl text-2xl font-bold leading-[1.16] text-emerald-950 md:text-4xl md:leading-[1.12]">
+              <span className="mb-2 block text-[#15803D]">Same Day Service.</span>
               Book trusted yard work in seconds.
             </h1>
             <p className="mt-4 max-w-xl text-sm font-medium leading-6 text-gray-700 md:text-base">
@@ -39,12 +39,6 @@ const page = () => {
             </div>
 
             <div className="flex flex-wrap gap-6 text-sm font-medium text-emerald-800">
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-[#22C55E] p-1 text-emerald-800">
-                  <FaCheck color="#fff" />
-                </span>
-                Same Day Service
-              </div>
               <div className="flex items-center gap-2">
                 <span className="rounded-full bg-[#22C55E] p-1 text-emerald-800">
                   <MdLocalPolice color="#fff" />
