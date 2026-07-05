@@ -36,6 +36,7 @@ const ServiceCard = ({
   icon,
   title,
   price,
+  pricingType,
   pricingSummary,
   duration,
   description,
@@ -53,7 +54,9 @@ const ServiceCard = ({
       <h3 className="mb-2 text-lg font-semibold text-gray-900">{title}</h3>
       <div className="flex items-baseline gap-2 mb-1">
         <span className="text-3xl font-bold text-gray-900">${formatPrice(price)}</span>
-        <span className="text-sm text-gray-500">starting</span>
+        <span className="text-sm text-gray-500">
+          {pricingType === "fixed" ? "fixed" : "starting"}
+        </span>
       </div>
       <p className="mb-4 text-sm text-gray-500">{duration}</p>
       <p className="grow text-sm text-gray-600">{description}</p>
@@ -118,6 +121,9 @@ const ServicePricing = () => {
                 {currentCategory.title}
               </h2>
               <p className="text-gray-600">{currentCategory.subtitle}</p>
+              <p className="mt-3 text-sm text-gray-600">
+                All services include verified, insured workers and photo + video proof of completion before payout is released.
+              </p>
             </div>
 
             {currentCategory.services.length === 0 ? (
